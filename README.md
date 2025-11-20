@@ -1,108 +1,158 @@
-## Tesla Order Status Dashboard
+# Tesla Order Status Dashboard
 
-Modern FastAPI dashboard that visualizes the latest Tesla order data, VIN metadata, delivery blockers, and Tesla task progression. The UI persists Tesla API tokens locally so you can refresh data without re-authenticating every time.
+A self-hosted FastAPI application that surfaces the latest data from your Tesla order. It renders a polished dashboard with VIN metadata, delivery blockers, task progress, and raw payload details so you can track the journey from reservation to delivery without refreshing the Tesla app.
 
-### Highlights
-- Responsive dashboard cards with VIN carousel, decoded VIN modal, and task timelines.
-- Delivery, registration, finance, and metadata insights extracted from the Tesla Owner API.
-- Manual refresh endpoint plus background caching in `tesla_orders.json`.
-- Works locally with Poetry or in production via Docker Compose.
+> **Heads-up:** This project is not affiliated with Tesla. It uses your own session tokens to call the publicly available Owner API. Treat the exported data with the same care as any other personal information.
 
 ---
 
-## Requirements
-- Tesla account with an active order (needed for the OAuth device flow).
-- Python 3.11+ (for local development) **or** Docker + Docker Compose.
-- `tesla_tokens.json` and `tesla_orders.json` files in the project root (can be empty; they store the OAuth tokens and cached payload).
-
-> ℹ️ When using Docker bind mounts you must create the two JSON files before starting the container so Docker can map them.
-
-```
-type nul > tesla_tokens.json
-type nul > tesla_orders.json
-```
+## Table of Contents
+- [Tesla Order Status Dashboard](#tesla-order-status-dashboard)
+  - [Table of Contents](#table-of-contents)
+  - [Highlights](#highlights)
+  - [Architecture](#architecture)
+  - [Prerequisites](#prerequisites)
+  - [Running with Docker](#running-with-docker)
+  - [Running Locally with Poetry](#running-locally-with-poetry)
+  - [Authenticating with Tesla](#authenticating-with-tesla)
+  - [Refreshing \& Cached Data](#refreshing--cached-data)
+  - [Utilities](#utilities)
+  - [Project Layout](#project-layout)
+  - [Troubleshooting](#troubleshooting)
+  - [Contributing](#contributing)
 
 ---
 
-## Running with Docker (Recommended)
+## Highlights
+- **Rich dashboard** – responsive cards with VIN image carousel, decoded VIN modal, delivery blockers, and order task timelines.
+- **Insight extraction** – delivery, finance, registration, and metadata panels sourced from the Tesla Owner API payload.
+- **Reusable modal system** – VIN decode details are available on-demand instead of dumping everything into the main grid.
+- **Multi-run caching** – API responses and tokens are stored on disk (`tesla_orders.json`, `tesla_tokens.json`) so the UI can render instantly at startup.
+- **True dark theme** – minimal motion and color-coded states for quick scanning.
+
+---
+
+## Architecture
+- **FastAPI** (`app/main.py`) serves HTML views using Jinja2 templates and exposes `/`, `/login`, `/refresh`, and `/history` routes.
+- **Monitor service** (`app/monitor.py`) manages Tesla OAuth tokens, calls the Owner API, and normalizes the nested JSON structure into UI-friendly dictionaries.
+- **VIN decoder** (`app/vin_decoder.py`) provides offline decoding for the assigned VIN so you can see motor, factory, and battery details.
+- **Templates** (`app/templates/`) implement the entire UI layer. No frontend build tooling is required; styling relies on utility classes defined in the base template.
+
+---
+
+## Prerequisites
+- Tesla account with an active order (needed to complete the OAuth flow).
+- One of the following runtime setups:
+  - **Docker & Docker Compose** (recommended for a contained deployment), or
+  - **Python 3.11+** with [Poetry](https://python-poetry.org/) for local development.
+- Two writable files in the project root:
+  - `tesla_tokens.json` – stores access + refresh tokens.
+  - `tesla_orders.json` – stores the most recent Owner API payload.
+
+Both files are already gitignored. If they do not exist yet, create them before starting the app:
+
+```powershell
+# Windows PowerShell
+ni tesla_tokens.json -ItemType File
+ni tesla_orders.json -ItemType File
+```
+
 ```bash
-docker-compose up --build
+# macOS/Linux
+touch tesla_tokens.json tesla_orders.json
 ```
-The dashboard is now available at [http://localhost:8000](http://localhost:8000). Containers mount `tesla_tokens.json` and `tesla_orders.json` so logins and cached responses survive restarts.
-
-Stop everything with `docker-compose down`.
 
 ---
 
-## Local Development with Poetry
-1. Install Poetry if you do not have it yet:
+## Running with Docker
+1. Build and start the stack:
+   ```bash
+   docker-compose up --build
+   ```
+2. Open [http://localhost:8000](http://localhost:8000).
+3. Stop everything with `docker-compose down`.
+
+Docker mounts the two JSON files into the container so state survives restarts.
+
+---
+
+## Running Locally with Poetry
+1. Install Poetry (once):
    ```bash
    pip install poetry
    ```
-2. Install dependencies and set up the virtual environment:
+2. Install dependencies:
    ```bash
    poetry install
    ```
-3. Start the FastAPI server:
+3. Launch FastAPI in autoreload mode:
    ```bash
    poetry run uvicorn app.main:app --reload
    ```
 4. Visit [http://localhost:8000](http://localhost:8000).
 
+Use `poetry run uvicorn app.main:app --reload --port 9000` if you need a different port.
+
 ---
 
 ## Authenticating with Tesla
-1. Launch the app and navigate to `/login`.
-2. Click **Open Tesla Login** to start the OAuth flow in a new browser tab.
-3. After Tesla redirects you to `https://auth.tesla.com/void/callback?...`, copy that full URL (the page will show “Page Not Found,” which is expected).
-4. Paste the URL into the form on `/login` and submit.
+1. Navigate to `/login`.
+2. Click **Open Tesla Login** – a new tab will load `auth.tesla.com`.
+3. Complete the login; Tesla will redirect you to `https://auth.tesla.com/void/callback?...` and show a "Page Not Found" message.
+4. Copy the entire callback URL from the browser address bar.
+5. Paste it into the form on `/login` and submit.
 
-The callback stores access and refresh tokens in `tesla_tokens.json`. You can revoke access at any time via Tesla’s security settings; then delete the JSON file locally.
-
-### Refreshing Order Data
-- Use the **Refresh Orders** button on the dashboard or hit `GET /refresh`. Responses are cached in `tesla_orders.json` so the UI can render instantly on the next load.
+The server stores the access + refresh tokens in `tesla_tokens.json`. You can revoke access from your Tesla account at any time; just delete the JSON file locally to force a new login.
 
 ---
 
-## CLI & Utilities
-
-| Tool | Command | Purpose |
-| ---- | ------- | ------- |
-| `tesla_order_status.py` | `python tesla_order_status.py` | Authenticates, downloads the latest Tesla order payload, prints a CLI summary, and writes `tesla_orders.json`. Useful for cron jobs or verifying API connectivity without the UI. |
-| VIN decoder check | `poetry run python scripts/validate_vin_decoder.py` | Compares the built-in VIN decoder with NHTSA’s VPIC API for a curated set of VINs. Requires internet access. |
+## Refreshing & Cached Data
+- The dashboard reads `tesla_orders.json` first, so a previous snapshot appears instantly.
+- Click **Refresh Orders** (or load `/refresh`) to fetch fresh data. The new payload replaces the cached JSON on disk.
+- Each order card still shows the raw payload inside a collapsible block in case you want to inspect the original Tesla response.
 
 ---
 
-## Preview
-
-#### Main Dashboard
-![Image](https://github.com/user-attachments/assets/b19cf27c-e3a3-48a0-9b7f-ec2c649e4166)
-
-#### Change Tracking View
-![Image](https://github.com/user-attachments/assets/4f1f05cb-743e-4605-97ff-3c1d0d6ff67d)
+## Utilities
+| Tool | Command | Description |
+| ---- | ------- | ----------- |
+| VIN decoder regression | `poetry run python scripts/validate_vin_decoder.py` | Calls NHTSA's VPIC API for several sample VINs and compares the results with the bundled decoder output. Requires an internet connection. |
 
 ---
 
-## Project Structure
+## Project Layout
 ```
 app/
+  __init__.py
   main.py            # FastAPI entrypoint & routes
   monitor.py         # Tesla API client + caching helpers
+  tesla_stores.py    # Enum of routing locations
   vin_decoder.py     # Offline VIN metadata decoder
-  templates/         # Jinja2 templates for dashboard + login flow
-  static/            # CSS/JS assets
+  templates/
+    base.html
+    index.html
+    login.html
+    history.html
+Dockerfile
+README.md
+poetry.lock
+pyproject.toml
 scripts/
   validate_vin_decoder.py
-tesla_order_status.py # CLI helper to fetch & diff orders
-docker-compose.yml    # Production-ready stack
+docker-compose.yml
 ```
 
 ---
 
 ## Troubleshooting
-- **Missing tokens file**: if the app keeps redirecting to `/login`, ensure `tesla_tokens.json` exists and is writable by the process/container.
-- **Docker file mounts become directories**: create blank `tesla_tokens.json` and `tesla_orders.json` before running `docker-compose up`.
-- **Rate limiting or 401 responses**: re-authenticate via `/login`, or run `python tesla_order_status.py` to refresh tokens.
+- **Redirect loop to /login** – make sure `tesla_tokens.json` exists and is writable by the server/container user.
+- **Docker bind mounts turn into folders** – create both JSON files before running `docker-compose up` so the bind mount has an actual file target.
+- **401 or rate limiting errors** – tokens may be expired or revoked. Delete `tesla_tokens.json` and repeat the login flow.
+- **VIN modal renders off-screen** – ensure you are loading the bundled CSS (no CDN dependency) and check the browser console for blocking extensions.
+- **Changes not visible** – when using Docker, rebuild the image (`docker-compose build`) or restart the container after editing templates or Python modules.
 
-Feel free to open issues or PRs if you run into problems or want to add features.
+---
+
+## Contributing
+Issues and pull requests are welcome. If you add new Tesla API calls, please avoid committing personal data and update this README so others understand the new behavior.
 
