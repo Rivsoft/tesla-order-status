@@ -12,7 +12,6 @@ A self-hosted FastAPI application that surfaces the latest data from your Tesla 
   - [Highlights](#highlights)
   - [Architecture](#architecture)
   - [Prerequisites](#prerequisites)
-  - [Running with Docker](#running-with-docker)
   - [Running Locally with Poetry](#running-locally-with-poetry)
   - [Authenticating with Tesla](#authenticating-with-tesla)
   - [Refreshing \& Cached Data](#refreshing--cached-data)
@@ -42,9 +41,7 @@ A self-hosted FastAPI application that surfaces the latest data from your Tesla 
 
 ## Prerequisites
 - Tesla account with an active order (needed to complete the OAuth flow).
-- One of the following runtime setups:
-  - **Docker & Docker Compose** (recommended for a contained deployment), or
-  - **Python 3.11+** with [Poetry](https://python-poetry.org/) for local development.
+- **Python 3.11+** with [Poetry](https://python-poetry.org/) for dependency management.
 - Two writable files in the project root:
   - `tesla_tokens.json` – stores access + refresh tokens.
   - `tesla_orders.json` – stores the most recent Owner API payload.
@@ -61,18 +58,6 @@ ni tesla_orders.json -ItemType File
 # macOS/Linux
 touch tesla_tokens.json tesla_orders.json
 ```
-
----
-
-## Running with Docker
-1. Build and start the stack:
-   ```bash
-   docker-compose up --build
-   ```
-2. Open [http://localhost:8000](http://localhost:8000).
-3. Stop everything with `docker-compose down`.
-
-Docker mounts the two JSON files into the container so state survives restarts.
 
 ---
 
@@ -133,23 +118,20 @@ app/
     index.html
     login.html
     history.html
-Dockerfile
 README.md
 poetry.lock
 pyproject.toml
 scripts/
   validate_vin_decoder.py
-docker-compose.yml
 ```
 
 ---
 
 ## Troubleshooting
 - **Redirect loop to /login** – make sure `tesla_tokens.json` exists and is writable by the server/container user.
-- **Docker bind mounts turn into folders** – create both JSON files before running `docker-compose up` so the bind mount has an actual file target.
 - **401 or rate limiting errors** – tokens may be expired or revoked. Delete `tesla_tokens.json` and repeat the login flow.
 - **VIN modal renders off-screen** – ensure you are loading the bundled CSS (no CDN dependency) and check the browser console for blocking extensions.
-- **Changes not visible** – when using Docker, rebuild the image (`docker-compose build`) or restart the container after editing templates or Python modules.
+- **Changes not visible** – restart the Poetry-run Uvicorn server after editing templates or Python modules.
 
 ---
 
