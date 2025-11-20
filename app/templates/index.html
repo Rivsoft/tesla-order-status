@@ -336,6 +336,57 @@
 const ordersDataElement = document.getElementById('orders-data');
 const orderData = ordersDataElement ? JSON.parse(ordersDataElement.textContent) : [];
 
+const HISTORY_KEY = 'teslaOrderHistory';
+const MAX_HISTORY_ENTRIES = 40;
+
+function readHistoryEntries() {
+    if (typeof window === 'undefined' || !window.localStorage) {
+        return [];
+    }
+    try {
+        return JSON.parse(window.localStorage.getItem(HISTORY_KEY)) || [];
+    } catch (err) {
+        console.warn('Unable to parse stored history snapshot', err);
+        return [];
+    }
+}
+
+function writeHistoryEntries(entries) {
+    if (typeof window === 'undefined' || !window.localStorage) {
+        return;
+    }
+    try {
+        window.localStorage.setItem(HISTORY_KEY, JSON.stringify(entries));
+    } catch (err) {
+        console.warn('Unable to persist history snapshot', err);
+    }
+}
+
+function snapshotOrdersToHistory() {
+    if (!Array.isArray(orderData) || !orderData.length) {
+        return;
+    }
+    const history = readHistoryEntries();
+    const normalizedOrders = JSON.parse(JSON.stringify(orderData));
+    const lastEntry = history[history.length - 1];
+    const lastOrdersJson = lastEntry ? JSON.stringify(lastEntry.orders) : null;
+    const currentOrdersJson = JSON.stringify(normalizedOrders);
+    if (lastOrdersJson === currentOrdersJson) {
+        return; // No changes since last snapshot.
+    }
+
+    history.push({
+        timestamp: new Date().toISOString(),
+        orders: normalizedOrders
+    });
+    if (history.length > MAX_HISTORY_ENTRIES) {
+        history.splice(0, history.length - MAX_HISTORY_ENTRIES);
+    }
+    writeHistoryEntries(history);
+}
+
+snapshotOrdersToHistory();
+
 const modalContainer = document.getElementById('vin-modal-container');
 
 function closeVinModal() {
@@ -412,7 +463,11 @@ function setImage(index) {
     const clampedIndex = Math.max(0, Math.min(index, images.length - 1));
     image.src = images[clampedIndex];
     if (counter) counter.textContent = `${clampedIndex + 1} / ${images.length}`;
-    dots.forEach(dot => dot.classList.toggle('opacity-100', dot.dataset.sliderDot == clampedIndex));
+    dots.forEach(dot => {
+        const isActive = dot.dataset.sliderDot == clampedIndex;
+        dot.classList.toggle('opacity-100', isActive);
+        dot.classList.toggle('opacity-40', !isActive);
+    });
 }
 
 function handleSliderClick(event) {
@@ -432,7 +487,11 @@ function handleSliderClick(event) {
     currentIndex = (currentIndex + action + images.length) % images.length;
     image.src = images[currentIndex];
     if (counter) counter.textContent = `${currentIndex + 1} / ${images.length}`;
-    dots.forEach(dot => dot.classList.toggle('opacity-100', dot.dataset.sliderDot == currentIndex));
+    dots.forEach(dot => {
+        const isActive = dot.dataset.sliderDot == currentIndex;
+        dot.classList.toggle('opacity-100', isActive);
+        dot.classList.toggle('opacity-40', !isActive);
+    });
 }
 
 document.querySelectorAll('[data-slider]').forEach(slider => {
@@ -451,7 +510,11 @@ document.querySelectorAll('[data-slider]').forEach(slider => {
 
             image.src = images[index];
             if (counter) counter.textContent = `${index + 1} / ${images.length}`;
-            dots.forEach(dot => dot.classList.toggle('opacity-100', dot.dataset.sliderDot == index));
+            dots.forEach(dot => {
+                const isActive = dot.dataset.sliderDot == index;
+                dot.classList.toggle('opacity-100', isActive);
+                dot.classList.toggle('opacity-40', !isActive);
+            });
         });
     });
 });

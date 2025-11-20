@@ -10,7 +10,6 @@ A self-hosted FastAPI application that surfaces the latest data from your Tesla 
 - [Tesla Order Status Dashboard](#tesla-order-status-dashboard)
   - [Table of Contents](#table-of-contents)
   - [Highlights](#highlights)
-  - [Architecture](#architecture)
   - [Prerequisites](#prerequisites)
   - [Running Locally with Poetry](#running-locally-with-poetry)
   - [Authenticating with Tesla](#authenticating-with-tesla)
@@ -26,38 +25,23 @@ A self-hosted FastAPI application that surfaces the latest data from your Tesla 
 - **Rich dashboard** – responsive cards with VIN image carousel, decoded VIN modal, delivery blockers, and order task timelines.
 - **Insight extraction** – delivery, finance, registration, and metadata panels sourced from the Tesla Owner API payload.
 - **Reusable modal system** – VIN decode details are available on-demand instead of dumping everything into the main grid.
-- **Multi-run caching** – API responses and tokens are stored on disk (`tesla_orders.json`, `tesla_tokens.json`) so the UI can render instantly at startup.
+- **Client-held tokens** – OAuth tokens live inside the user's browser (IndexedDB + service worker headers) so the server never stores reusable credentials.
+- **Local snapshot history** – the `/history` view keeps browser-only snapshots with diff summaries and scrollable raw payload panels for deep dives without blowing up the layout.
 - **True dark theme** – minimal motion and color-coded states for quick scanning.
 
 ---
 
-## Architecture
-- **FastAPI** (`app/main.py`) serves HTML views using Jinja2 templates and exposes `/`, `/login`, `/refresh`, and `/history` routes.
-- **Monitor service** (`app/monitor.py`) manages Tesla OAuth tokens, calls the Owner API, and normalizes the nested JSON structure into UI-friendly dictionaries.
+- **FastAPI** (`app/main.py`) serves HTML views using Jinja2 templates and exposes `/`, `/login`, `/refresh`, and `/history` routes. Pages only render when a valid Tesla token bundle is supplied via a custom header.
+- **Monitor service** (`app/monitor.py`) manages Tesla OAuth flows, refreshes tokens on the fly, and normalizes the nested JSON structure into UI-friendly dictionaries.
 - **VIN decoder** (`app/vin_decoder.py`) provides offline decoding for the assigned VIN so you can see motor, factory, and battery details.
-- **Templates** (`app/templates/`) implement the entire UI layer. No frontend build tooling is required; styling relies on utility classes defined in the base template.
+- **Service worker** (`app/static/sw.js`) injects the opaque token bundle into every backend request and persists updates back to IndexedDB, creating a transparent privacy-preserving proxy.
+- **Templates** (`app/templates/`) implement the UI while client-side scripts capture history snapshots in `localStorage`.
 
 ---
 
 ## Prerequisites
 - Tesla account with an active order (needed to complete the OAuth flow).
 - **Python 3.11+** with [Poetry](https://python-poetry.org/) for dependency management.
-- Two writable files in the project root:
-  - `tesla_tokens.json` – stores access + refresh tokens.
-  - `tesla_orders.json` – stores the most recent Owner API payload.
-
-Both files are already gitignored. If they do not exist yet, create them before starting the app:
-
-```powershell
-# Windows PowerShell
-ni tesla_tokens.json -ItemType File
-ni tesla_orders.json -ItemType File
-```
-
-```bash
-# macOS/Linux
-touch tesla_tokens.json tesla_orders.json
-```
 
 ---
 
@@ -87,14 +71,15 @@ Use `poetry run uvicorn app.main:app --reload --port 9000` if you need a differe
 4. Copy the entire callback URL from the browser address bar.
 5. Paste it into the form on `/login` and submit.
 
-The server stores the access + refresh tokens in `tesla_tokens.json`. You can revoke access from your Tesla account at any time; just delete the JSON file locally to force a new login.
+The callback response stores the access + refresh token bundle inside your browser's IndexedDB, registers the service worker, and immediately redirects back to the dashboard. Tokens never persist on the server. Use **Logout** (or revoke the token inside your Tesla account) to wipe the client-side store at any time.
 
 ---
 
 ## Refreshing & Cached Data
-- The dashboard reads `tesla_orders.json` first, so a previous snapshot appears instantly.
-- Click **Refresh Orders** (or load `/refresh`) to fetch fresh data. The new payload replaces the cached JSON on disk.
+- Every dashboard load sends your locally stored token bundle to FastAPI, which in turn calls Tesla's Owner API just for that request—no shared server cache exists.
+- Click **Refresh Orders** (or load `/refresh`) to trigger a brand-new API call and surface a success banner. Your browser also stores snapshots in `localStorage` so the `/history` page can highlight changes without leaking data to the server.
 - Each order card still shows the raw payload inside a collapsible block in case you want to inspect the original Tesla response.
+- The `/history` page mirrors that payload with a toggleable, scrollable viewer plus change summaries so you can diff snapshots without leaving the browser.
 
 ---
 
@@ -118,6 +103,14 @@ app/
     index.html
     login.html
     history.html
+    callback_success.html
+    logout.html
+  static/
+    sw.js            # Service worker that injects token headers
+    js/
+      app-init.js
+      sw-register.js
+      token-storage.js
 README.md
 poetry.lock
 pyproject.toml
@@ -128,8 +121,8 @@ scripts/
 ---
 
 ## Troubleshooting
-- **Redirect loop to /login** – make sure `tesla_tokens.json` exists and is writable by the server/container user.
-- **401 or rate limiting errors** – tokens may be expired or revoked. Delete `tesla_tokens.json` and repeat the login flow.
+- **Redirect loop to /login** – your session may have expired or been cleared. Log in again to mint fresh tokens.
+- **401 or rate limiting errors** – Tesla may have revoked the token; log out and repeat the OAuth flow.
 - **VIN modal renders off-screen** – ensure you are loading the bundled CSS (no CDN dependency) and check the browser console for blocking extensions.
 - **Changes not visible** – restart the Poetry-run Uvicorn server after editing templates or Python modules.
 

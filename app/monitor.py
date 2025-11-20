@@ -20,8 +20,6 @@ AUTH_URL = 'https://auth.tesla.com/oauth2/v3/authorize'
 TOKEN_URL = 'https://auth.tesla.com/oauth2/v3/token'
 SCOPE = 'openid email offline_access'
 CODE_CHALLENGE_METHOD = 'S256'
-TOKEN_FILE = 'tesla_tokens.json'
-ORDERS_FILE = 'tesla_orders.json'
 APP_VERSION = '9.99.9-9999'
 
 class TeslaOrderMonitor:
@@ -65,16 +63,6 @@ class TeslaOrderMonitor:
         response.raise_for_status()
         return response.json()
 
-    def save_tokens_to_file(self, tokens: Dict[str, Any]) -> None:
-        with open(TOKEN_FILE, 'w') as f:
-            json.dump(tokens, f)
-
-    def load_tokens_from_file(self) -> Dict[str, Any]:
-        if not os.path.exists(TOKEN_FILE):
-            return {}
-        with open(TOKEN_FILE, 'r') as f:
-            return json.load(f)
-
     def is_token_valid(self, access_token: str) -> bool:
         try:
             jwt_decoded = json.loads(base64.b64decode(access_token.split('.')[1] + '==').decode('utf-8'))
@@ -106,16 +94,6 @@ class TeslaOrderMonitor:
         response.raise_for_status()
         return response.json()
 
-    def save_orders_to_file(self, orders: List[Dict[str, Any]]) -> None:
-        with open(ORDERS_FILE, 'w') as f:
-            json.dump(orders, f)
-
-    def load_orders_from_file(self) -> Optional[List[Dict[str, Any]]]:
-        if os.path.exists(ORDERS_FILE):
-            with open(ORDERS_FILE, 'r') as f:
-                return json.load(f)
-        return None
-
     def compare_dicts(self, old_dict: Dict[str, Any], new_dict: Dict[str, Any], path: str = '') -> List[str]:
         differences = []
         for key in old_dict:
@@ -143,14 +121,16 @@ class TeslaOrderMonitor:
             differences.append(f"+ Added order {i}")
         return differences
 
-    def ensure_authenticated(self) -> Tuple[Optional[str], Optional[str]]:
-        """Returns (access_token, refresh_token) or (None, None) if login needed"""
-        token_file = self.load_tokens_from_file()
-        if not token_file:
+    def ensure_authenticated(self, token_bundle: Optional[Dict[str, Any]]) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
+        """Validate or refresh a token bundle.
+
+        Returns the active access token plus an updated token bundle
+        (which the caller should persist in its own storage)."""
+        if not token_bundle:
             return None, None
-            
-        access_token = token_file.get('access_token')
-        refresh_token = token_file.get('refresh_token')
+
+        access_token = token_bundle.get('access_token')
+        refresh_token = token_bundle.get('refresh_token')
 
         if not access_token or not refresh_token:
             return None, None
@@ -160,13 +140,13 @@ class TeslaOrderMonitor:
                 logger.info("Refreshing token...")
                 token_response = self.refresh_tokens(refresh_token)
                 access_token = token_response['access_token']
-                token_file['access_token'] = access_token
-                self.save_tokens_to_file(token_file)
+                # Merge to keep any additional fields Tesla returns
+                token_bundle.update(token_response)
             except Exception as e:
                 logger.error(f"Failed to refresh token: {e}")
                 return None, None
-                
-        return access_token, refresh_token
+
+        return access_token, token_bundle
 
     def get_store_label(self, routing_loc):
         try:

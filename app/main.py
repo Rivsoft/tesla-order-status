@@ -1,22 +1,127 @@
-from fastapi import FastAPI, Request, Form, HTTPException
-from fastapi.responses import RedirectResponse, HTMLResponse
+from __future__ import annotations
+
+import base64
+import json
+import logging
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from fastapi import FastAPI, Form, Request
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+
 from .monitor import TeslaOrderMonitor
 from .vin_decoder import VinDecoder
-import logging
-import os
+
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+SW_FILE = STATIC_DIR / "sw.js"
 
 app = FastAPI(title="Tesla Order Status")
 monitor = TeslaOrderMonitor()
 vin_decoder = VinDecoder()
 
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 logger = logging.getLogger(__name__)
+
+TOKEN_HEADER = "x-tesla-bundle"
+CLEAR_HEADER = "x-tesla-clear"
+
+
+def _decode_token_bundle(value: Optional[str]) -> Optional[Dict[str, Any]]:
+    if not value:
+        return None
+    try:
+        decoded = base64.b64decode(value.encode("utf-8"))
+        return json.loads(decoded.decode("utf-8"))
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("Invalid token header: %s", exc)
+        return None
+
+
+def _encode_token_bundle(bundle: Dict[str, Any]) -> str:
+    return base64.b64encode(json.dumps(bundle).encode("utf-8")).decode("utf-8")
+
+
+def _extract_tokens(request: Request) -> Optional[Dict[str, Any]]:
+    return _decode_token_bundle(request.headers.get(TOKEN_HEADER))
+
+
+def _finalize_response(
+    response: HTMLResponse | RedirectResponse,
+    token_bundle: Optional[Dict[str, Any]] = None,
+    *,
+    clear: bool = False,
+) -> HTMLResponse | RedirectResponse:
+    response.headers["Cache-Control"] = "no-store"
+    if clear:
+        response.headers[CLEAR_HEADER] = "1"
+    elif token_bundle:
+        response.headers[TOKEN_HEADER] = _encode_token_bundle(token_bundle)
+    return response
+
+
+def _redirect_to_login(clear: bool = False) -> RedirectResponse:
+    response = RedirectResponse(url="/login", status_code=303)
+    return _finalize_response(response, clear=clear)
+
+
+def _ensure_request_tokens(request: Request) -> tuple[Optional[str], Optional[Dict[str, Any]]]:
+    token_bundle = _extract_tokens(request)
+    if not token_bundle:
+        return None, None
+    access_token, updated_bundle = monitor.ensure_authenticated(token_bundle)
+    return access_token, updated_bundle
+
+
+def _collect_order_entries(access_token: str) -> List[Dict[str, Any]]:
+    basic_orders = monitor.retrieve_orders(access_token)
+    detailed_orders: List[Dict[str, Any]] = []
+    for order in basic_orders:
+        order_id = order.get('referenceNumber')
+        if not order_id:
+            continue
+        details = monitor.get_order_details(order_id, access_token)
+        detailed_orders.append({'order': order, 'details': details})
+    return detailed_orders
+
+
+def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    formatted_orders: List[Dict[str, Any]] = []
+    for order_data in order_entries:
+        order = order_data['order']
+        details = order_data['details']
+
+        scheduling = details.get('tasks', {}).get('scheduling', {})
+        order_info = details.get('tasks', {}).get('registration', {}).get('orderDetails', {})
+        final_payment = details.get('tasks', {}).get('finalPayment', {}).get('data', {})
+
+        image_urls = monitor.get_vehicle_image_urls(order['modelCode'], order.get('mktOptions', ''))
+        tasks = monitor.parse_tasks(details.get('tasks', {}))
+
+        vin = order.get('vin')
+        vin_details = vin_decoder.decode(vin) if vin else None
+
+        formatted_orders.append({
+            'rn': order['referenceNumber'],
+            'model': order['modelCode'].upper(),
+            'vin': vin or 'N/A',
+            'vin_details': vin_details,
+            'status': order.get('orderStatus', 'unknown'),
+            'delivery_date': scheduling.get('apptDateTimeAddressStr', 'Not Scheduled'),
+            'delivery_window': scheduling.get('deliveryWindowDisplay', 'TBD'),
+            'location': monitor.get_store_label(order_info.get('vehicleRoutingLocation', 0)),
+            'eta': final_payment.get('etaToDeliveryCenter', 'Unknown'),
+            'image_urls': image_urls,
+            'tasks': tasks,
+            'insights': build_order_insights(order_data),
+            'raw_payload': order_data
+        })
+    return formatted_orders
 
 
 def _format_currency(amount: Any, currency: Optional[str]) -> Optional[str]:
@@ -30,7 +135,7 @@ def _format_currency(amount: Any, currency: Optional[str]) -> Optional[str]:
     return f"{currency} {formatted}".strip() if currency else formatted
 
 
-def _format_timestamp(value: Any) -> str | None:
+def _format_timestamp(value: Any) -> Optional[str]:
     if not value:
         return None
     try:
@@ -38,7 +143,7 @@ def _format_timestamp(value: Any) -> str | None:
         if raw.endswith('Z'):
             raw = raw[:-1] + '+00:00'
         return datetime.fromisoformat(raw).strftime("%d %b %Y %H:%M")
-    except Exception:
+    except Exception:  # pragma: no cover - fallback
         return str(value)
 
 
@@ -57,21 +162,16 @@ def _build_items(pairs: List[tuple[str, Any]]) -> List[Dict[str, str]]:
 
 def _extract_delivery_blockers(readiness: Dict[str, Any]) -> List[Dict[str, str]]:
     gates = readiness.get('gates') or []
-    if isinstance(gates, dict):
-        gate_iterable = gates.values()
-    else:
-        gate_iterable = gates
+    gate_iterable = gates.values() if isinstance(gates, dict) else gates
 
     blockers: List[Dict[str, str]] = []
     for gate in gate_iterable:
-        if not isinstance(gate, dict):
-            continue
-        if not gate.get('isBlocker'):
+        if not isinstance(gate, dict) or not gate.get('isBlocker'):
             continue
         blockers.append({
             "gate": str(gate.get('gate', 'UNKNOWN')),
             "owner": str(gate.get('actionOwner', 'Unknown')),
-            "action_time": str(gate.get('actionTime', 'N/A'))
+            "action_time": str(gate.get('actionTime', 'N/A')),
         })
     return blockers
 
@@ -114,7 +214,12 @@ def build_order_insights(order_entry: Dict[str, Any]) -> Dict[str, Any]:
 
     delivery_items = _build_items([
         ("Delivery Type", scheduling.get('deliveryType') or final_payment_data.get('deliveryType')),
-        ("Pickup Location", scheduling.get('deliveryAddressTitle') or (final_payment_data.get('deliveryAddress') or {}).get('address1') or final_payment_data.get('pickupLocation')),
+        (
+            "Pickup Location",
+            scheduling.get('deliveryAddressTitle')
+            or (final_payment_data.get('deliveryAddress') or {}).get('address1')
+            or final_payment_data.get('pickupLocation'),
+        ),
         ("Ready To Accept", scheduling.get('readyToAccept')),
         ("Self-Scheduling", scheduling.get('selfSchedulingUrl')),
         ("Appointment Status", scheduling.get('appointmentStatusName')),
@@ -129,7 +234,10 @@ def build_order_insights(order_entry: Dict[str, Any]) -> Dict[str, Any]:
         ("Registrant Type", registration_details.get('registrantType') or registration.get('registrantType')),
         ("Order Placed", _format_timestamp(registration_details.get('orderPlacedDate'))),
         ("Order Booked", _format_timestamp(registration_details.get('orderBookedDate'))),
-        ("Primary Registrant", registration.get('strings', {}).get('messageBody') or registration_details.get('primaryRegistrantType')),
+        (
+            "Primary Registrant",
+            registration.get('strings', {}).get('messageBody') or registration_details.get('primaryRegistrantType'),
+        ),
         ("Country", registration_details.get('countryCode') or order.get('countryCode')),
         ("Delivery Alerts", registration.get('alertStatuses', {}).get('regDelivery')),
     ])
@@ -151,125 +259,76 @@ def build_order_insights(order_entry: Dict[str, Any]) -> Dict[str, Any]:
         "delivery": delivery_items,
         "registration": registration_items,
         "metadata": metadata_items,
-        "blockers": blockers
+        "blockers": blockers,
     }
+
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    access_token, _ = monitor.ensure_authenticated()
-    if not access_token:
-        return RedirectResponse(url="/login")
+    access_token, token_bundle = _ensure_request_tokens(request)
+    if not access_token or not token_bundle:
+        return _redirect_to_login(clear=True)
 
-    # Load existing data first to show something immediately if available
-    orders = monitor.load_orders_from_file()
-    
-    # If no orders, try to fetch (this might be slow for a page load, ideally async background task)
-    # For simplicity, we'll just show what we have or empty state
-    
-    formatted_orders = []
-    if orders:
-        for order_data in orders:
-            order = order_data['order']
-            details = order_data['details']
-            
-            # Extract key info
-            scheduling = details.get('tasks', {}).get('scheduling', {})
-            order_info = details.get('tasks', {}).get('registration', {}).get('orderDetails', {})
-            final_payment = details.get('tasks', {}).get('finalPayment', {}).get('data', {})
-            
-            # Images
-            image_urls = monitor.get_vehicle_image_urls(order['modelCode'], order.get('mktOptions', ''))
-            
-            # Tasks
-            tasks = monitor.parse_tasks(details.get('tasks', {}))
-            
-            # VIN Decode
-            vin = order.get('vin')
-            vin_details = vin_decoder.decode(vin) if vin else None
+    try:
+        detailed_orders = _collect_order_entries(access_token)
+    except Exception as exc:
+        logger.error("Failed to fetch Tesla orders: %s", exc)
+        response = HTMLResponse(content=f"Failed to load orders: {exc}", status_code=500)
+        return _finalize_response(response, token_bundle)
 
-            formatted_orders.append({
-                'rn': order['referenceNumber'],
-                'model': order['modelCode'].upper(),
-                'vin': vin or 'N/A',
-                'vin_details': vin_details,
-                'status': order['orderStatus'],
-                'delivery_date': scheduling.get('apptDateTimeAddressStr', 'Not Scheduled'),
-                'delivery_window': scheduling.get('deliveryWindowDisplay', 'TBD'),
-                'location': monitor.get_store_label(order_info.get('vehicleRoutingLocation', 0)),
-                'eta': final_payment.get('etaToDeliveryCenter', 'Unknown'),
-                'image_urls': image_urls,
-                'tasks': tasks,
-                'insights': build_order_insights(order_data),
-                'raw_payload': order_data
-            })
-
+    formatted_orders = _format_orders(detailed_orders)
     context = {
         "request": request,
         "orders": formatted_orders,
         "orders_json": formatted_orders,
-        "refreshed": request.query_params.get("refreshed") == "1"
+        "refreshed": request.query_params.get("refreshed") == "1",
     }
-    return templates.TemplateResponse("index.html", context)
+    response = templates.TemplateResponse("index.html", context)
+    return _finalize_response(response, token_bundle)
+
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     auth_url = monitor.get_auth_url()
-    return templates.TemplateResponse("login.html", {"request": request, "auth_url": auth_url})
+    response = templates.TemplateResponse("login.html", {"request": request, "auth_url": auth_url})
+    return _finalize_response(response, clear=True)
 
-@app.get("/logout")
-async def logout():
-    try:
-        if os.path.exists('tesla_tokens.json'):
-            os.remove('tesla_tokens.json')
-    except Exception as e:
-        logger.error(f"Error during logout: {e}")
-    return RedirectResponse(url="/login", status_code=303)
+
+@app.get("/logout", response_class=HTMLResponse)
+async def logout(request: Request):
+    response = templates.TemplateResponse("logout.html", {"request": request})
+    return _finalize_response(response, clear=True)
+
 
 @app.post("/callback")
-async def callback(url: str = Form(...)):
+async def callback(request: Request, url: str = Form(...)):
     try:
         code = monitor.parse_redirect_url(url)
         tokens = monitor.exchange_code_for_tokens(code)
-        monitor.save_tokens_to_file(tokens)
-        response = RedirectResponse(url="/?refreshed=1", status_code=303)
-        return response
-    except Exception as e:
-        logger.error(f"Login failed: {e}")
-        return HTMLResponse(content=f"Login failed: {e}", status_code=400)
+    except Exception as exc:
+        logger.error("Login failed: %s", exc)
+        return HTMLResponse(content=f"Login failed: {exc}", status_code=400)
+
+    context = {"request": request, "tokens": tokens}
+    response = templates.TemplateResponse("callback_success.html", context)
+    return _finalize_response(response, tokens)
+
 
 @app.get("/refresh")
-async def refresh_data():
-    access_token, _ = monitor.ensure_authenticated()
-    if not access_token:
-        return RedirectResponse(url="/login")
-    
-    try:
-        old_orders = monitor.load_orders_from_file()
-        new_orders_basic = monitor.retrieve_orders(access_token)
-        
-        detailed_new_orders = []
-        for order in new_orders_basic:
-            order_id = order['referenceNumber']
-            details = monitor.get_order_details(order_id, access_token)
-            detailed_new_orders.append({'order': order, 'details': details})
-            
-        monitor.save_orders_to_file(detailed_new_orders)
-        
-        # Calculate diffs
-        diffs = []
-        if old_orders:
-            diffs = monitor.compare_orders(old_orders, detailed_new_orders)
-            
-        return RedirectResponse(url="/", status_code=303)
-    except Exception as e:
-        logger.error(f"Refresh failed: {e}")
-        return HTMLResponse(content=f"Refresh failed: {e}", status_code=500)
+async def refresh_redirect(request: Request):
+    access_token, token_bundle = _ensure_request_tokens(request)
+    if not access_token or not token_bundle:
+        return _redirect_to_login(clear=True)
+    response = RedirectResponse(url="/?refreshed=1", status_code=303)
+    return _finalize_response(response, token_bundle)
+
 
 @app.get("/history", response_class=HTMLResponse)
 async def history(request: Request):
-    # In a real app, we'd store history in a DB. 
-    # Here we just compare current file with... itself? 
-    # The current script only compares "Last Run" vs "Current Run".
-    # We can't easily show history without a DB.
-    # For now, we'll just show a placeholder or maybe the last diff if we stored it.
-    return templates.TemplateResponse("history.html", {"request": request, "diffs": []})
+    response = templates.TemplateResponse("history.html", {"request": request})
+    return _finalize_response(response)
+
+
+@app.get("/sw.js")
+async def service_worker() -> FileResponse:
+    return FileResponse(SW_FILE, media_type="application/javascript")
