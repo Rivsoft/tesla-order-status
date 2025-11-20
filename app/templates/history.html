@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-6">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-3xl font-bold">Order History</h1>
+            <p class="text-zinc-400 text-sm">Snapshots are stored locally in your browser whenever the dashboard loads.</p>
+        </div>
+        <button id="clear-history"
+                class="self-start sm:self-auto bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
+            Clear History
+        </button>
+    </div>
+
+    <div id="history-empty" class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-8 text-center text-zinc-400">
+        No history yet. Visit the dashboard to capture your first snapshot.
+    </div>
+
+    <div id="history-list" class="space-y-6"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const storageKey = 'teslaOrderHistory';
+    const listEl = document.getElementById('history-list');
+    const emptyEl = document.getElementById('history-empty');
+    const clearBtn = document.getElementById('clear-history');
+
+    const readHistory = () => {
+        try {
+            return JSON.parse(localStorage.getItem(storageKey)) || [];
+        } catch (err) {
+            console.warn('Unable to read history', err);
+            return [];
+        }
+    };
+
+    const formatDate = (value) => {
+        try {
+            return new Date(value).toLocaleString();
+        } catch (err) {
+            return value;
+        }
+    };
+
+    const FIELD_LABELS = {
+        status: 'Status',
+        delivery_window: 'Delivery Window',
+        delivery_date: 'Delivery Date',
+        location: 'Delivery Location',
+        vin: 'VIN',
+        eta: 'ETA to Center'
+    };
+
+    const flattenObject = (value, prefix = '', acc = {}, depth = 0) => {
+        if (depth > 5) {
+            acc[prefix || 'value'] = typeof value === 'string' ? value : JSON.stringify(value);
+            return acc;
+        }
+
+        if (Array.isArray(value)) {
+            if (!value.length) {
+                acc[prefix || '[]'] = '[]';
+                return acc;
+            }
+            value.forEach((item, index) => {
+                const path = prefix ? `${prefix}[${index}]` : `[${index}]`;
+                flattenObject(item, path, acc, depth + 1);
+            });
+            return acc;
+        }
+
+        if (value && typeof value === 'object') {
+            Object.entries(value).forEach(([key, val]) => {
+                const path = prefix ? `${prefix}.${key}` : key;
+                flattenObject(val, path, acc, depth + 1);
+            });
+            return acc;
+        }
+
+        acc[prefix || 'value'] = value === undefined ? 'undefined' : (typeof value === 'string' ? value : JSON.stringify(value));
+        return acc;
+    };
+
+    const describeRawDifferences = (currentRaw, previousRaw) => {
+        if (!currentRaw || !previousRaw) {
+            return [];
+        }
+
+        const currentFlat = flattenObject(currentRaw, '', {});
+        const previousFlat = flattenObject(previousRaw, '', {});
+        const keys = new Set([...Object.keys(currentFlat), ...Object.keys(previousFlat)]);
+        const diffs = [];
+
+        keys.forEach((key) => {
+            const before = previousFlat[key];
+            const after = currentFlat[key];
+            if (before === after) {
+                return;
+            }
+            const beforeText = before === undefined ? '—' : before;
+            const afterText = after === undefined ? '—' : after;
+            diffs.push(`${key}: "${beforeText}" → "${afterText}"`);
+        });
+
+        return diffs.slice(0, 30).map((diff) => `RAW ${diff}`);
+    };
+
+    const describeTaskDifferences = (current = [], previous = []) => {
+        if (!previous.length) {
+            return current.length ? ['Tasks added or updated'] : [];
+        }
+
+        const prevMap = new Map(previous.map((task) => [task.name, !!task.complete]));
+        const changes = [];
+
+        current.forEach((task) => {
+            const prevState = prevMap.get(task.name);
+            const currState = !!task.complete;
+
+            if (prevState === undefined) {
+                changes.push(`Task "${task.name}" added (${currState ? 'done' : 'pending'})`);
+            } else if (prevState !== currState) {
+                changes.push(`Task "${task.name}" marked ${currState ? 'done' : 'pending'}`);
+            }
+        });
+
+        return changes;
+    };
+
+    const describeFieldDifferences = (current, previous) => {
+        if (!previous) {
+            return [];
+        }
+
+        const diffs = [];
+        Object.entries(FIELD_LABELS).forEach(([key, label]) => {
+            const currentValue = current[key] ?? '—';
+            const previousValue = previous[key] ?? '—';
+            if (currentValue !== previousValue) {
+                diffs.push(`${label}: "${previousValue}" → "${currentValue}"`);
+            }
+        });
+
+        return diffs;
+    };
+
+    const summarizeOrderDifferences = (current, previous) => {
+        if (!previous) {
+            return [];
+        }
+        const fieldDiffs = describeFieldDifferences(current, previous);
+        const taskDiffs = describeTaskDifferences(current.tasks, previous.tasks);
+        const rawDiffs = describeRawDifferences(current.raw_payload, previous.raw_payload);
+        return [...fieldDiffs, ...taskDiffs, ...rawDiffs];
+    };
+
+    const createTaskList = (tasks = []) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'mt-3 text-[0.7rem] text-zinc-400 space-y-1';
+        if (!tasks.length) {
+            const empty = document.createElement('p');
+            empty.textContent = 'No tasks reported.';
+            wrapper.appendChild(empty);
+            return wrapper;
+        }
+
+        tasks.forEach((task) => {
+            const row = document.createElement('div');
+            row.className = 'flex items-center justify-between border border-zinc-800 rounded px-2 py-1';
+            const name = document.createElement('span');
+            name.textContent = task.name;
+            const badge = document.createElement('span');
+            badge.className = `uppercase text-[0.6rem] font-semibold px-2 py-0.5 rounded ${task.complete ? 'bg-green-900/40 text-green-300 border border-green-800/60' : 'bg-amber-900/30 text-amber-300 border border-amber-800/60'}`;
+            badge.textContent = task.complete ? 'Done' : 'Pending';
+            row.append(name, badge);
+            wrapper.appendChild(row);
+        });
+
+        return wrapper;
+    };
+
+    const createOrderCard = (order, previousOrder) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'border border-zinc-700 rounded-lg p-4 bg-zinc-900/40';
+
+        const header = document.createElement('div');
+        header.className = 'flex items-center justify-between text-sm font-semibold';
+        const model = document.createElement('span');
+        model.textContent = `${order.model} • ${order.rn}`;
+        const status = document.createElement('span');
+        status.className = 'uppercase tracking-wide text-xs px-2 py-1 rounded-full bg-zinc-800 border border-zinc-600';
+        status.textContent = order.status;
+        header.append(model, status);
+
+        const details = document.createElement('div');
+        details.className = 'mt-3 text-xs text-zinc-400 space-y-1';
+
+        Object.entries(FIELD_LABELS).forEach(([key, label]) => {
+            const row = document.createElement('p');
+            const value = order[key] ?? '—';
+            const previousValue = previousOrder ? previousOrder[key] : undefined;
+            const changed = previousValue !== undefined && previousValue !== value;
+
+            const labelSpan = document.createElement('span');
+            labelSpan.textContent = `${label}: `;
+            const valueSpan = document.createElement('span');
+            valueSpan.className = `text-zinc-200 ${changed ? 'text-amber-300 font-semibold' : ''}`;
+            valueSpan.textContent = value;
+
+            if (changed) {
+                const chip = document.createElement('span');
+                chip.className = 'ml-2 text-[0.6rem] uppercase tracking-wide text-amber-300';
+                chip.textContent = 'changed';
+                valueSpan.appendChild(chip);
+            }
+
+            row.append(labelSpan, valueSpan);
+            details.appendChild(row);
+        });
+
+        const tasksHeading = document.createElement('p');
+        tasksHeading.className = 'mt-3 text-[0.7rem] uppercase tracking-wide text-zinc-500';
+        tasksHeading.textContent = 'Tasks';
+
+        const tasksList = createTaskList(order.tasks);
+
+        const payloadToggle = document.createElement('button');
+        payloadToggle.type = 'button';
+        payloadToggle.className = 'mt-4 text-[0.65rem] uppercase tracking-wide text-blue-300 hover:text-blue-200 transition underline';
+        payloadToggle.textContent = 'Show raw payload';
+
+        const payloadPre = document.createElement('pre');
+        payloadPre.className = 'mt-2 hidden text-[0.7rem] bg-black/40 border border-zinc-800 rounded p-3 overflow-x-auto text-zinc-300';
+        payloadPre.textContent = JSON.stringify(order.raw_payload ?? order, null, 2);
+
+        payloadToggle.addEventListener('click', () => {
+            const isHidden = payloadPre.classList.toggle('hidden');
+            payloadToggle.textContent = isHidden ? 'Show raw payload' : 'Hide raw payload';
+        });
+
+        wrapper.append(header, details, tasksHeading, tasksList, payloadToggle, payloadPre);
+        return wrapper;
+    };
+
+    const renderHistory = () => {
+        const history = readHistory().filter(Boolean).reverse();
+        listEl.innerHTML = '';
+
+        if (!history.length) {
+            emptyEl.classList.remove('hidden');
+            return;
+        }
+
+        emptyEl.classList.add('hidden');
+
+        history.forEach((entry, index) => {
+            const previousEntry = history[index + 1];
+            const previousOrdersMap = previousEntry
+                ? Object.fromEntries((previousEntry.orders || []).map((order) => [order.rn, order]))
+                : {};
+            const card = document.createElement('div');
+            card.className = 'bg-zinc-800 border border-zinc-700 rounded-xl p-6 space-y-4 shadow-xl';
+
+            const header = document.createElement('div');
+            header.className = 'flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between';
+            const title = document.createElement('h2');
+            title.className = 'text-lg font-semibold text-white';
+            title.textContent = previousEntry ? 'Snapshot (diff vs previous)' : 'Snapshot';
+            const timestamp = document.createElement('span');
+            timestamp.className = 'text-sm text-zinc-400';
+            timestamp.textContent = formatDate(entry.timestamp);
+            header.append(title, timestamp);
+
+            if (previousEntry) {
+                const diffSummaryWrapper = document.createElement('div');
+                diffSummaryWrapper.className = 'bg-black/40 border border-zinc-800 rounded-lg p-4';
+
+                const summaryTitle = document.createElement('p');
+                summaryTitle.className = 'text-sm font-semibold mb-2 text-white';
+                summaryTitle.textContent = 'Changes since last snapshot';
+
+                const summaryList = document.createElement('div');
+                summaryList.className = 'space-y-3 text-xs text-zinc-400';
+
+                let itemsAdded = 0;
+                (entry.orders || []).forEach((order) => {
+                    const previousOrder = previousOrdersMap[order.rn];
+                    const differences = summarizeOrderDifferences(order, previousOrder);
+                    if (differences.length) {
+                        itemsAdded += 1;
+                        const orderRow = document.createElement('div');
+                        orderRow.className = 'border border-zinc-800 rounded-md p-3 bg-zinc-900/40';
+
+                        const heading = document.createElement('p');
+                        heading.className = 'text-sm font-semibold text-white mb-1';
+                        heading.textContent = `${order.model} • ${order.rn}`;
+
+                        const list = document.createElement('ul');
+                        list.className = 'list-disc text-xs text-zinc-300 pl-4 space-y-1';
+                        differences.forEach((diff) => {
+                            const li = document.createElement('li');
+                            li.textContent = diff;
+                            list.appendChild(li);
+                        });
+
+                        orderRow.append(heading, list);
+                        summaryList.appendChild(orderRow);
+                    }
+                });
+
+                if (itemsAdded === 0) {
+                    const emptyMsg = document.createElement('p');
+                    emptyMsg.className = 'text-xs text-zinc-400';
+                    emptyMsg.textContent = 'No data changed compared to the previous snapshot.';
+                    summaryList.appendChild(emptyMsg);
+                }
+
+                diffSummaryWrapper.append(summaryTitle, summaryList);
+                card.append(diffSummaryWrapper);
+            }
+
+            const ordersGrid = document.createElement('div');
+            ordersGrid.className = 'grid grid-cols-1 gap-4 md:grid-cols-2';
+            (entry.orders || []).forEach((order) => {
+                const previousOrder = previousOrdersMap[order.rn];
+                ordersGrid.appendChild(createOrderCard(order, previousOrder));
+            });
+
+            card.append(header, ordersGrid);
+            listEl.appendChild(card);
+        });
+    };
+
+    clearBtn?.addEventListener('click', () => {
+        localStorage.removeItem(storageKey);
+        renderHistory();
+    });
+
+    renderHistory();
+});
+</script>
+{% endblock %}

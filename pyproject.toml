@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "tesla-order-status"
+version = "0.1.0"
+description = "A web application to track Tesla order status"
+authors = ["Mariano Rivera <rivsoft@gmail.com>"]
+readme = "README.md"
+packages = [{include = "app"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "^0.109.0"
+uvicorn = "^0.27.0"
+jinja2 = "^3.1.3"
+python-multipart = "^0.0.9"
+requests = "^2.31.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

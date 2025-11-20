@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tesla Order Status</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        tesla: {
+                            red: '#e82127',
+                            dark: '#181818',
+                            gray: '#f4f4f4'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #121212;
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <nav class="bg-zinc-900 border-b border-zinc-800 p-4">
+        <div class="max-w-7xl mx-auto w-full flex justify-between items-center px-2">
+            <a href="/" class="text-2xl font-bold text-white flex items-center gap-2">
+                <svg class="w-8 h-8 text-tesla-red" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                Tesla Status
+            </a>
+            <div class="flex gap-4">
+                <a href="/" class="hover:text-tesla-red transition">Dashboard</a>
+                <a href="/history" class="hover:text-tesla-red transition">History</a>
+                <a href="/refresh" class="bg-tesla-red hover:bg-red-700 text-white px-4 py-1 rounded transition">Refresh</a>
+                <a href="/logout" class="hover:text-tesla-red transition">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto w-full px-4 py-6 flex-grow">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="bg-zinc-900 border-t border-zinc-800 p-4 text-center text-zinc-500 text-sm">
+        &copy; 2025 Tesla Order Status
+    </footer>
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

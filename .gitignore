@@ -1,0 +1,28 @@
+/__pycache__/*
+.venv
+dist
+*.egg-info
+
+# Python cache/artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Environments & local settings
+.env
+.env.*
+.python-version
+venv/
+
+# Tooling / IDE metadata
+.vscode/
+.idea/
+
+# Coverage & reports
+.coverage
+coverage.xml
+htmlcov/
+
+# Logs & misc
+*.log
