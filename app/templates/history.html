@@ -338,8 +338,9 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.entries(FIELD_LABELS).forEach(([key, label]) => {
             const row = document.createElement('p');
             const value = order[key] ?? '—';
-            const previousValue = previousOrder ? previousOrder[key] : undefined;
-            const changed = previousValue !== undefined && previousValue !== value;
+            const hasPrevious = Boolean(previousOrder);
+            const previousValue = hasPrevious ? (previousOrder[key] ?? '—') : '—';
+            const changed = hasPrevious && previousValue !== value;
 
             const labelSpan = document.createElement('span');
             labelSpan.textContent = `${label}: `;
