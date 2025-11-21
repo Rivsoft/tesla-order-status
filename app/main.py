@@ -16,7 +16,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .metrics import build_metrics_from_env
-
 from .monitor import TeslaOrderMonitor
 from .vin_decoder import VinDecoder
 
@@ -45,11 +44,7 @@ VISIT_PATHS = frozenset({"/", "/history", "/refresh"})
 @app.middleware("http")
 async def visit_metrics_middleware(request: Request, call_next):
     response = await call_next(request)
-    if (
-        visit_metrics
-        and request.method == "GET"
-        and request.url.path in VISIT_PATHS
-    ):
+    if visit_metrics and request.method == "GET" and request.url.path in VISIT_PATHS:
         visit_metrics.record(request.url.path, logger=logger)
     return response
 
@@ -58,6 +53,7 @@ async def visit_metrics_middleware(request: Request, call_next):
 async def flush_visit_metrics() -> None:
     if visit_metrics:
         visit_metrics.force_log(logger=logger)
+
 
 MARKET_OPTION_CATALOG: Dict[str, Dict[str, str]] = {
     # Vehicle / drive / manufacturing

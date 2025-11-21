@@ -4,7 +4,14 @@ import os
 import threading
 import time
 from collections import Counter
+from dataclasses import dataclass
 from typing import Dict
+
+
+@dataclass
+class Snapshot:
+    total: int
+    per_path: Dict[str, int]
 
 
 class VisitMetrics:
@@ -32,8 +39,8 @@ class VisitMetrics:
         if snapshot:
             logger.info(
                 "visit-metrics total=%s breakdown=%s",
-                snapshot["total"],
-                self._format_breakdown(snapshot["per_path"]),
+                snapshot.total,
+                self._format_breakdown(snapshot.per_path),
             )
 
     def force_log(self, *, logger) -> None:
@@ -41,8 +48,8 @@ class VisitMetrics:
             snapshot = self._snapshot_locked()
         logger.info(
             "visit-metrics total=%s breakdown=%s",
-            snapshot["total"],
-            self._format_breakdown(snapshot["per_path"]),
+            snapshot.total,
+            self._format_breakdown(snapshot.per_path),
         )
 
     def _should_log(self, timestamp: float) -> bool:
@@ -52,8 +59,8 @@ class VisitMetrics:
             return True
         return False
 
-    def _snapshot_locked(self) -> Dict[str, Dict[str, int]]:
-        return {"total": self._total, "per_path": dict(self._per_path)}
+    def _snapshot_locked(self) -> Snapshot:
+        return Snapshot(total=self._total, per_path=dict(self._per_path))
 
     @staticmethod
     def _format_breakdown(per_path: Dict[str, int]) -> str:
