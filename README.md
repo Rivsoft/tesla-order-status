@@ -13,9 +13,12 @@ A self-hosted FastAPI application that surfaces the latest data from your Tesla 
   - [Prerequisites](#prerequisites)
   - [Running Locally with Poetry](#running-locally-with-poetry)
   - [Running with Docker](#running-with-docker)
+    - [Using Docker Compose](#using-docker-compose)
+  - [Local Linting](#local-linting)
   - [Authenticating with Tesla](#authenticating-with-tesla)
   - [Refreshing \& Cached Data](#refreshing--cached-data)
   - [Utilities](#utilities)
+  - [Privacy-Preserving Visit Metrics](#privacy-preserving-visit-metrics)
   - [Project Layout](#project-layout)
   - [Troubleshooting](#troubleshooting)
   - [Contributing](#contributing)
@@ -123,6 +126,20 @@ The callback response stores the access + refresh token bundle inside your brows
 | Tool | Command | Description |
 | ---- | ------- | ----------- |
 | VIN decoder regression | `poetry run python scripts/validate_vin_decoder.py` | Calls NHTSA's VPIC API for several sample VINs and compares the results with the bundled decoder output. Requires an internet connection. |
+
+---
+
+## Privacy-Preserving Visit Metrics
+The dashboard now records lightweight visit counts to help you understand how often the main pages are loaded while avoiding any collection of personally identifiable information.
+
+- Metrics only include anonymous tallies for the ` /`, `/history`, and `/refresh` routes. No IP addresses, user agents, or tokens are stored.
+- Aggregated counts are logged under the `visit-metrics` prefix, for example: `visit-metrics total=42 breakdown=/:30, /history:8, /refresh:4`.
+- The collector runs in-memory and resets on process restart. To tune or disable it, set these environment variables before launching the app:
+  - `ENABLE_VISIT_METRICS=0` — completely disable tracking (default is `1`).
+  - `METRIC_LOG_EVERY=25` — log after every _N_ recorded visits (default 25).
+  - `METRIC_LOG_INTERVAL=300` — ensure a log at least every _N_ seconds even if traffic is low (default 300 seconds).
+
+Review the application logs to see high-level usage without exposing visitor data.
 
 ---
 

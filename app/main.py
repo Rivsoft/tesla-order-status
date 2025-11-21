@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import os
 import re
 from collections import defaultdict
 from datetime import datetime
@@ -14,6 +15,8 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from .metrics import build_metrics_from_env
+
 from .monitor import TeslaOrderMonitor
 from .vin_decoder import VinDecoder
 
@@ -24,6 +27,8 @@ SW_FILE = STATIC_DIR / "sw.js"
 app = FastAPI(title="Tesla Order Status")
 monitor = TeslaOrderMonitor()
 vin_decoder = VinDecoder()
+metrics_enabled = os.getenv("ENABLE_VISIT_METRICS", "1") != "0"
+visit_metrics = build_metrics_from_env() if metrics_enabled else None
 
 ResponseT = TypeVar("ResponseT", HTMLResponse, RedirectResponse)
 
@@ -34,6 +39,25 @@ logger = logging.getLogger(__name__)
 
 TOKEN_HEADER = "x-tesla-bundle"
 CLEAR_HEADER = "x-tesla-clear"
+VISIT_PATHS = frozenset({"/", "/history", "/refresh"})
+
+
+@app.middleware("http")
+async def visit_metrics_middleware(request: Request, call_next):
+    response = await call_next(request)
+    if (
+        visit_metrics
+        and request.method == "GET"
+        and request.url.path in VISIT_PATHS
+    ):
+        visit_metrics.record(request.url.path, logger=logger)
+    return response
+
+
+@app.on_event("shutdown")
+async def flush_visit_metrics() -> None:
+    if visit_metrics:
+        visit_metrics.force_log(logger=logger)
 
 MARKET_OPTION_CATALOG: Dict[str, Dict[str, str]] = {
     # Vehicle / drive / manufacturing
