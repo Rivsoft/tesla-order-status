@@ -253,7 +253,7 @@
 
                     {% set registration_items = order.insights.registration or [] %}
                     {{ ui.insight_panel(
-                        "Registration &amp; Order",
+                        "Registration & Order",
                         "Paperwork milestones and regional routing pulled from Tesla.",
                         registration_items,
                         "No registration data surfaced."
@@ -275,7 +275,7 @@
 
                     {% if metadata_items %}
                     {{ ui.insight_panel(
-                        "Order Metadata &amp; Options",
+                        "Order Metadata & Options",
                         "Internal statuses plus decoded market option codes.",
                         metadata_items,
                         "No metadata available."
