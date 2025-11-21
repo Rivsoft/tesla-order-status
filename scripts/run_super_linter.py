@@ -5,6 +5,7 @@ Usage:
 
 Requires Docker Desktop/Engine with access to the repository directory.
 """
+
 from __future__ import annotations
 
 import os
@@ -20,7 +21,10 @@ PYTHON_VERSION = os.environ.get("SUPER_LINTER_PYTHON", "3.11")
 
 def ensure_docker() -> None:
     if shutil.which("docker") is None:
-        sys.exit("Docker is required to run GitHub Super Linter locally. Install Docker Desktop/Engine and ensure 'docker' is on your PATH.")
+        sys.exit(
+            "Docker is required to run GitHub Super Linter locally. Install Docker "
+            "Desktop/Engine and ensure 'docker' is on your PATH."
+        )
 
 
 def docker_volume_path(path: Path) -> str:
