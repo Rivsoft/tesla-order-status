@@ -12,6 +12,7 @@ A self-hosted FastAPI application that surfaces the latest data from your Tesla 
   - [Highlights](#highlights)
   - [Prerequisites](#prerequisites)
   - [Running Locally with Poetry](#running-locally-with-poetry)
+  - [Running with Docker](#running-with-docker)
   - [Authenticating with Tesla](#authenticating-with-tesla)
   - [Refreshing \& Cached Data](#refreshing--cached-data)
   - [Utilities](#utilities)
@@ -61,6 +62,30 @@ A self-hosted FastAPI application that surfaces the latest data from your Tesla 
 4. Visit [http://localhost:8000](http://localhost:8000).
 
 Use `poetry run uvicorn app.main:app --reload --port 9000` if you need a different port.
+
+---
+
+## Running with Docker
+Dependencies install straight from `pyproject.toml` using Poetry inside the image—no `requirements.txt` export needed.
+
+```bash
+# Build the image
+docker build -t tesla-order-status .
+
+# Run the container, exposing FastAPI on localhost:8000
+docker run --rm -p 8000:8000 tesla-order-status
+```
+
+Swap the first port in `-p` (e.g., `-p 9000:8000`) if you want to expose it somewhere else. Once the container is running, visit `http://localhost:8000` and follow the same Tesla OAuth flow as the local Poetry setup.
+
+### Using Docker Compose
+If you prefer a single command that builds and runs via `docker-compose.yml`:
+
+```bash
+docker compose up --build
+```
+
+Compose maps port `8000` automatically (edit `docker-compose.yml` to change it) and restarts the app unless stopped. Stop with `Ctrl+C` or run `docker compose down`.
 
 ---
 

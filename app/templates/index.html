@@ -84,6 +84,19 @@
                 </div>
             </div>
 
+            {% if order.summary_items %}
+            <div class="px-6 pt-0 pb-6 bg-zinc-800/50">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    {% for item in order.summary_items %}
+                    <div class="flex flex-col gap-1">
+                        <span class="text-zinc-500 text-xs uppercase tracking-wider font-semibold">{{ item.label }}</span>
+                        <span class="text-lg text-white break-words">{{ item.value }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             {% if order.vin_details %}
             <template id="vin-panel-{{ loop.index }}">
                 <div class="space-y-4">
@@ -130,51 +143,118 @@
             {% endif %}
 
             <div class="p-6 border-t border-zinc-700 bg-zinc-900/30 flex flex-col gap-6 flex-grow">
+                {% set task_list = order.tasks or [] %}
+                {% set task_count = task_list|length %}
+                {% set completed_tasks = task_list|selectattr('complete')|list|length %}
+                {% set actionable_tasks = task_list|selectattr('actionable')|list|length %}
+                {% set waiting_tasks = task_list|selectattr('waiting_reason')|rejectattr('complete')|list|length %}
+                {% set info_tasks = task_count - (completed_tasks + actionable_tasks + waiting_tasks) %}
                 <div>
-                    <h3 class="text-zinc-400 text-sm uppercase tracking-wider font-semibold mb-4">Order Tasks</h3>
-                    <div class="space-y-3">
-                        {% for task in order.tasks %}
-                        <div class="flex items-center justify-between gap-4 group">
-                            <div class="flex items-center gap-3">
-                                <div class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center border 
-                                    {% if task.complete %}bg-green-500 border-green-500{% else %}border-zinc-600 group-hover:border-zinc-500{% endif %} transition-colors">
-                                    {% if task.complete %}
-                                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                    {% endif %}
-                                </div>
-                                <div class="flex flex-col">
-                                    <span class="text-sm {% if task.complete %}text-zinc-300{% else %}text-white{% endif %}">{{ task.name }}</span>
-                                    <span class="text-xs text-zinc-500">{{ task.status }}</span>
-                                    {% if task.details %}
-                                    <span class="text-xs text-zinc-500 max-w-xs">{{ task.details }}</span>
-                                    {% endif %}
-                                </div>
+                    <div class="flex flex-col gap-2 mb-4">
+                        <h3 class="text-zinc-400 text-sm uppercase tracking-wider font-semibold">Order Tasks</h3>
+                        <p class="text-xs text-zinc-500">{{ task_count }} step{{ '' if task_count == 1 else 's' }} tracked from Tesla's delivery checklist.</p>
+                        {% if task_count %}
+                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
+                            <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-3 py-2 text-emerald-200">
+                                <p class="uppercase tracking-wide text-[0.6rem]">Done</p>
+                                <p class="text-lg font-semibold text-white">{{ completed_tasks }}</p>
                             </div>
-                            <div class="flex flex-col items-end text-right gap-1">
-                                <span class="px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-wide rounded-full border
-                                    {% if task.complete %}bg-emerald-500/10 text-emerald-300 border-emerald-500/40
-                                    {% elif task.actionable %}bg-blue-500/10 text-blue-300 border-blue-500/40
-                                    {% else %}bg-amber-500/10 text-amber-200 border-amber-500/30{% endif %}">
-                                    {{ task.status }}
-                                </span>
-                                {% if task.due_date %}
-                                <span class="text-[0.6rem] uppercase tracking-wide text-zinc-500">{{ task.due_date }}</span>
+                            <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg px-3 py-2 text-blue-200">
+                                <p class="uppercase tracking-wide text-[0.6rem]">Action needed</p>
+                                <p class="text-lg font-semibold text-white">{{ actionable_tasks }}</p>
+                            </div>
+                            <div class="bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2 text-amber-100">
+                                <p class="uppercase tracking-wide text-[0.6rem]">Waiting on Tesla</p>
+                                <p class="text-lg font-semibold text-white">{{ waiting_tasks }}</p>
+                            </div>
+                            <div class="bg-zinc-800/60 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-300">
+                                <p class="uppercase tracking-wide text-[0.6rem]">Other</p>
+                                <p class="text-lg font-semibold text-white">{{ info_tasks if info_tasks > 0 else 0 }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="space-y-3">
+                        {% for task in task_list %}
+                        {% set state_label = 'Info only' %}
+                        {% set state_classes = 'bg-zinc-800/60 text-zinc-200 border border-zinc-700' %}
+                        {% if task.complete %}
+                            {% set state_label = 'Complete' %}
+                            {% set state_classes = 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30' %}
+                        {% elif task.actionable %}
+                            {% set state_label = 'Action required' %}
+                            {% set state_classes = 'bg-blue-500/10 text-blue-200 border border-blue-500/30' %}
+                        {% elif task.waiting_reason %}
+                            {% set state_label = 'Waiting on Tesla' %}
+                            {% set state_classes = 'bg-amber-500/10 text-amber-200 border border-amber-500/30' %}
+                        {% endif %}
+                        {% set show_waiting = task.waiting_reason and not task.complete %}
+                        {% set detail_text = task.details or '' %}
+                        {% set waiting_text = task.waiting_reason or '' %}
+                        {% set show_detail = detail_text and (not show_waiting or detail_text|trim != waiting_text|trim) %}
+                        <div class="rounded-2xl border border-zinc-700/70 bg-black/30 p-4" data-task-card>
+                            <button type="button"
+                                    class="flex w-full items-center justify-between gap-3 text-left"
+                                    data-task-toggle
+                                    aria-expanded="false"
+                                    title="Tesla status: {{ task.status }}">
+                                <div>
+                                    <p class="text-sm font-semibold text-white">{{ task.name }}</p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[0.65rem] px-3 py-1 rounded-full font-semibold uppercase tracking-wide {{ state_classes }}">{{ state_label }}</span>
+                                    <svg data-task-chevron class="w-4 h-4 text-zinc-500 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                                </div>
+                            </button>
+                            <div class="mt-3 space-y-3 hidden" data-task-body>
+                                {% if show_detail %}
+                                <p class="text-xs text-zinc-400 leading-relaxed">{{ task.details }}</p>
+                                {% endif %}
+                                {% if show_waiting %}
+                                <p class="text-xs text-amber-200 bg-amber-500/5 border border-amber-500/10 rounded-lg px-3 py-2">{{ task.waiting_reason }}</p>
+                                {% endif %}
+                                {% if task.metadata %}
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                    {% for meta in task.metadata %}
+                                    <div class="bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 py-2">
+                                        <p class="uppercase tracking-wide text-[0.55rem] text-zinc-500">{{ meta.label }}</p>
+                                        <p class="text-zinc-200 text-sm">{{ meta.value }}</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                                {% if task.cta_url and task.actionable %}
+                                <div class="flex justify-end">
+                                    <a href="{{ task.cta_url }}" target="_blank" rel="noopener" class="text-blue-300 hover:text-white text-[0.7rem] font-semibold uppercase tracking-wide flex items-center gap-1">
+                                        {{ task.cta_label or 'Open task' }}
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"/></svg>
+                                    </a>
+                                </div>
                                 {% endif %}
                             </div>
                         </div>
+                        {% else %}
+                        <p class="text-xs text-zinc-500">No tasks surfaced for this order.</p>
                         {% endfor %}
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div class="bg-black/20 rounded-xl p-4 border border-zinc-800/60">
-                        <p class="text-xs uppercase tracking-wide text-zinc-500">Delivery Logistics</p>
+                    <div class="bg-zinc-900/40 rounded-2xl p-5 border border-zinc-800/70 shadow-inner">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-sm font-semibold uppercase tracking-wide text-white">Delivery Logistics</p>
+                                <p class="text-xs text-zinc-500">Appointments, pickup routing, and readiness gates from Tesla tasks.</p>
+                            </div>
+                            <span class="text-[0.6rem] uppercase tracking-wide text-zinc-500">Live</span>
+                        </div>
                         {% if order.insights.delivery %}
-                        <dl class="mt-3 space-y-3">
+                        <dl class="mt-4 space-y-3">
                             {% for item in order.insights.delivery %}
                             <div>
                                 <dt class="text-[0.7rem] uppercase tracking-wide text-zinc-500">{{ item.label }}</dt>
-                                <dd class="text-white text-sm break-words" title="{{ item.value }}">{{ item.value }}</dd>
+                                <dd class="text-white text-sm break-words" title="{{ item.value | striptags }}">{{ item.value | safe }}</dd>
                             </div>
                             {% endfor %}
                         </dl>
@@ -184,14 +264,17 @@
                     </div>
 
                     {% set registration_items = order.insights.registration or [] %}
-                    <div class="bg-black/20 rounded-xl p-4 border border-zinc-800/60">
-                        <p class="text-xs uppercase tracking-wide text-zinc-500">Registration & Order</p>
+                    <div class="bg-zinc-900/40 rounded-2xl p-5 border border-zinc-800/70 shadow-inner">
+                        <div>
+                            <p class="text-sm font-semibold uppercase tracking-wide text-white">Registration & Order</p>
+                            <p class="text-xs text-zinc-500">Paperwork milestones and regional routing pulled from Tesla.</p>
+                        </div>
                         {% if registration_items %}
-                        <dl class="mt-3 space-y-3">
+                        <dl class="mt-4 space-y-3">
                             {% for item in registration_items %}
                             <div>
                                 <dt class="text-[0.7rem] uppercase tracking-wide text-zinc-500">{{ item.label }}</dt>
-                                <dd class="text-white text-sm break-words">{{ item.value }}</dd>
+                                <dd class="text-white text-sm break-words">{{ item.value | safe }}</dd>
                             </div>
                             {% endfor %}
                         </dl>
@@ -206,13 +289,16 @@
                 {% if finance_items or metadata_items %}
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {% if finance_items %}
-                    <div class="bg-black/20 rounded-xl p-4 border border-zinc-800/60">
-                        <p class="text-xs uppercase tracking-wide text-zinc-500">Finance Snapshot</p>
-                        <dl class="mt-3 space-y-3">
+                    <div class="bg-zinc-900/40 rounded-2xl p-5 border border-zinc-800/70 shadow-inner">
+                        <div>
+                            <p class="text-sm font-semibold uppercase tracking-wide text-white">Finance Snapshot</p>
+                            <p class="text-xs text-zinc-500">Down payments, lender status, and Tesla billing metadata.</p>
+                        </div>
+                        <dl class="mt-4 space-y-3">
                             {% for item in finance_items %}
                             <div>
                                 <dt class="text-[0.7rem] uppercase tracking-wide text-zinc-500">{{ item.label }}</dt>
-                                <dd class="text-white text-sm break-words" title="{{ item.value }}">{{ item.value }}</dd>
+                                <dd class="text-white text-sm break-words" title="{{ item.value | striptags }}">{{ item.value | safe }}</dd>
                             </div>
                             {% endfor %}
                         </dl>
@@ -220,13 +306,16 @@
                     {% endif %}
 
                     {% if metadata_items %}
-                    <div class="bg-black/20 rounded-xl p-4 border border-zinc-800/60">
-                        <p class="text-xs uppercase tracking-wide text-zinc-500">Order Metadata</p>
-                        <dl class="mt-3 space-y-3">
+                    <div class="bg-zinc-900/40 rounded-2xl p-5 border border-zinc-800/70 shadow-inner">
+                        <div>
+                            <p class="text-sm font-semibold uppercase tracking-wide text-white">Order Metadata & Options</p>
+                            <p class="text-xs text-zinc-500">Internal statuses plus decoded market option codes.</p>
+                        </div>
+                        <dl class="mt-4 space-y-3">
                             {% for item in metadata_items %}
                             <div>
                                 <dt class="text-[0.7rem] uppercase tracking-wide text-zinc-500">{{ item.label }}</dt>
-                                <dd class="text-white text-sm break-words" title="{{ item.value }}">{{ item.value }}</dd>
+                                <dd class="text-white text-sm break-words" title="{{ item.value | striptags }}">{{ item.value | safe }}</dd>
                             </div>
                             {% endfor %}
                         </dl>
@@ -241,7 +330,7 @@
                     <div class="space-y-2 text-sm">
                         {% for blocker in order.insights.blockers %}
                         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between border border-amber-800/40 rounded-lg px-3 py-2 bg-amber-500/10">
-                            <span class="text-white font-semibold">{{ blocker.gate|replace('_', ' ') }}</span>
+                            <span class="text-white font-semibold">{{ blocker.gate }}</span>
                             <span class="text-amber-200 text-xs">Owner: {{ blocker.owner }} • When: {{ blocker.action_time }}</span>
                         </div>
                         {% endfor %}
@@ -516,6 +605,20 @@ document.querySelectorAll('[data-slider]').forEach(slider => {
                 dot.classList.toggle('opacity-40', !isActive);
             });
         });
+    });
+});
+
+document.querySelectorAll('[data-task-toggle]').forEach(button => {
+    button.addEventListener('click', () => {
+        const card = button.closest('[data-task-card]');
+        const body = card?.querySelector('[data-task-body]');
+        if (!body) return;
+        const expanded = button.getAttribute('aria-expanded') === 'true';
+        const nextState = !expanded;
+        button.setAttribute('aria-expanded', String(nextState));
+        body.classList.toggle('hidden', !nextState);
+        const chevron = button.querySelector('[data-task-chevron]');
+        chevron?.classList.toggle('rotate-90', nextState);
     });
 });
 </script>

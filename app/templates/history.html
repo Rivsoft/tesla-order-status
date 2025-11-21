@@ -181,24 +181,139 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const createTaskList = (tasks = []) => {
         const wrapper = document.createElement('div');
-        wrapper.className = 'mt-3 text-[0.7rem] text-zinc-400 space-y-1';
+        wrapper.className = 'mt-3 space-y-2 text-[0.75rem]';
+
         if (!tasks.length) {
             const empty = document.createElement('p');
+            empty.className = 'text-zinc-500';
             empty.textContent = 'No tasks reported.';
             wrapper.appendChild(empty);
             return wrapper;
         }
 
+        const stateMeta = (task) => {
+            if (task.complete) {
+                return {
+                    label: 'Complete',
+                    classes: 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
+                };
+            }
+            if (task.actionable) {
+                return {
+                    label: 'Action required',
+                    classes: 'bg-blue-500/10 text-blue-200 border border-blue-500/30'
+                };
+            }
+            if (task.waiting_reason && !task.complete) {
+                return {
+                    label: 'Waiting on Tesla',
+                    classes: 'bg-amber-500/10 text-amber-200 border border-amber-500/30'
+                };
+            }
+            return {
+                label: 'Info only',
+                classes: 'bg-zinc-800/60 text-zinc-200 border border-zinc-700'
+            };
+        };
+
         tasks.forEach((task) => {
-            const row = document.createElement('div');
-            row.className = 'flex items-center justify-between border border-zinc-800 rounded px-2 py-1';
-            const name = document.createElement('span');
-            name.textContent = task.name;
+            const meta = stateMeta(task);
+            const card = document.createElement('div');
+            card.className = 'border border-zinc-800 rounded-lg p-3 bg-black/30 space-y-2';
+            const detailText = (task.details || '').trim();
+            const waitingText = (task.waiting_reason || '').trim();
+            const showWaiting = Boolean(task.waiting_reason && !task.complete);
+            const showDetail = Boolean(detailText && (!showWaiting || detailText !== waitingText));
+
+            const headerButton = document.createElement('button');
+            headerButton.type = 'button';
+            headerButton.className = 'flex items-center justify-between gap-3 w-full text-left';
+            headerButton.setAttribute('aria-expanded', 'false');
+            headerButton.title = task.status ? `Tesla status: ${task.status}` : 'Tesla status unknown';
+
+            const title = document.createElement('p');
+            title.className = 'text-sm font-semibold text-white';
+            title.textContent = task.name;
+
+            const rightWrap = document.createElement('div');
+            rightWrap.className = 'flex items-center gap-2';
+
             const badge = document.createElement('span');
-            badge.className = `uppercase text-[0.6rem] font-semibold px-2 py-0.5 rounded ${task.complete ? 'bg-green-900/40 text-green-300 border border-green-800/60' : 'bg-amber-900/30 text-amber-300 border border-amber-800/60'}`;
-            badge.textContent = task.complete ? 'Done' : 'Pending';
-            row.append(name, badge);
-            wrapper.appendChild(row);
+            badge.className = `text-[0.6rem] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide ${meta.classes}`;
+            badge.textContent = meta.label;
+
+            const chevron = document.createElement('span');
+            chevron.className = 'text-zinc-500 transition-transform';
+            chevron.innerHTML = '&#9656;';
+            rightWrap.append(badge, chevron);
+
+            headerButton.append(title, rightWrap);
+            card.appendChild(headerButton);
+
+            const body = document.createElement('div');
+            body.className = 'mt-3 space-y-2 hidden';
+
+            if (showDetail) {
+                const details = document.createElement('p');
+                details.className = 'text-zinc-400 text-xs leading-relaxed';
+                details.textContent = task.details;
+                body.appendChild(details);
+            }
+
+            if (showWaiting) {
+                const wait = document.createElement('p');
+                wait.className = 'text-xs text-amber-200 bg-amber-500/5 border border-amber-500/10 rounded-lg px-3 py-2';
+                wait.textContent = task.waiting_reason;
+                body.appendChild(wait);
+            }
+
+            if (Array.isArray(task.metadata) && task.metadata.length) {
+                const grid = document.createElement('div');
+                grid.className = 'grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs';
+                task.metadata.forEach((meta) => {
+                    if (!meta || !meta.value) {
+                        return;
+                    }
+                    const cell = document.createElement('div');
+                    cell.className = 'bg-zinc-900/50 border border-zinc-800 rounded-lg px-3 py-2';
+                    const label = document.createElement('p');
+                    label.className = 'text-[0.55rem] uppercase tracking-wide text-zinc-500';
+                    label.textContent = meta.label || '';
+                    const value = document.createElement('p');
+                    value.className = 'text-zinc-200 text-xs';
+                    value.innerHTML = meta.value;
+                    cell.append(label, value);
+                    grid.appendChild(cell);
+                });
+                if (grid.children.length) {
+                    body.appendChild(grid);
+                }
+            }
+
+            if (task.cta_url && task.actionable) {
+                const actionLink = document.createElement('a');
+                actionLink.href = task.cta_url;
+                actionLink.target = '_blank';
+                actionLink.rel = 'noopener';
+                actionLink.className = 'text-[0.65rem] uppercase tracking-wide text-blue-300 hover:text-white font-semibold inline-flex items-center gap-1';
+                const linkLabel = task.cta_label || 'Open task';
+                actionLink.textContent = linkLabel;
+                const icon = document.createElement('span');
+                icon.innerHTML = '&rarr;';
+                actionLink.appendChild(icon);
+                body.appendChild(actionLink);
+            }
+
+            card.appendChild(body);
+
+            headerButton.addEventListener('click', () => {
+                const expanded = headerButton.getAttribute('aria-expanded') === 'true';
+                headerButton.setAttribute('aria-expanded', String(!expanded));
+                body.classList.toggle('hidden', expanded);
+                chevron.style.transform = expanded ? 'rotate(0deg)' : 'rotate(90deg)';
+            });
+
+            wrapper.appendChild(card);
         });
 
         return wrapper;

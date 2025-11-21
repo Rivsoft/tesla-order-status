@@ -6,6 +6,7 @@ import hashlib
 import requests
 import urllib.parse
 import logging
+from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
 from .tesla_stores import TeslaStore
 
@@ -257,6 +258,21 @@ class TeslaOrderMonitor:
             cta_url = task.get('selfSchedulingUrl')
         elif task_key == 'finalPayment':
             cta_url = (task.get('card', {}).get('target') or '').startswith('http') and task.get('card', {}).get('target') or None
+        elif isinstance(card.get('target'), str) and card.get('target').startswith('http'):
+            cta_url = card.get('target')
+
+        cta_label = strings.get('ctaLabel') or strings.get('actionButtonLabel') or \
+            card.get('ctaLabel') or card.get('buttonText') or card.get('ctaText') or 'Open task'
+
+        metadata = self._compile_task_metadata(
+            task,
+            task_key=task_key,
+            status_token=status_token,
+            status_label=status_label,
+            enabled=enabled,
+            actionable=actionable,
+            complete=complete
+        )
 
         return {
             "name": name,
@@ -265,5 +281,57 @@ class TeslaOrderMonitor:
             "details": detail_text,
             "actionable": actionable,
             "waiting_reason": wait_reason,
-            "cta_url": cta_url
+            "cta_url": cta_url,
+            "cta_label": cta_label,
+            "metadata": metadata
         }
+
+    def _compile_task_metadata(
+        self,
+        task: Dict[str, Any],
+        *,
+        task_key: Optional[str],
+        status_token: str,
+        status_label: str,
+        enabled: bool,
+        actionable: bool,
+        complete: bool
+    ) -> List[Dict[str, str]]:
+        metadata: List[Dict[str, str]] = []
+
+        def add(label: str, value: Any) -> None:
+            if value in (None, '', []):
+                return
+            metadata.append({"label": label, "value": str(value)})
+
+        add('Tesla status', status_label)
+        add('Status code', status_token)
+        add('Enabled', 'Yes' if enabled else 'No')
+        add('Actionable', 'Yes' if actionable else 'No')
+        add('Complete', 'Yes' if complete else 'No')
+
+        data_section = task.get('data') if isinstance(task.get('data'), dict) else {}
+
+        timestamp_fields = [
+            ('availableAt', 'Available since'),
+            ('dueDate', 'Due date'),
+            ('statusDate', 'Status updated'),
+            ('completedDate', 'Completed at'),
+            ('statusTimestamp', 'Status timestamp'),
+        ]
+
+        for field, label in timestamp_fields:
+            value = task.get(field) or data_section.get(field)
+            if value:
+                add(label, self._format_task_timestamp(value))
+
+        return metadata
+
+    def _format_task_timestamp(self, value: Any) -> str:
+        try:
+            raw = str(value)
+            if raw.endswith('Z'):
+                raw = raw[:-1] + '+00:00'
+            return datetime.fromisoformat(raw).strftime('%d %b %Y %H:%M')
+        except Exception:
+            return str(value)
