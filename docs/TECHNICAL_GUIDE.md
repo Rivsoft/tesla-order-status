@@ -71,19 +71,20 @@ Add your own environment file or export values before starting the server.
 
 ## Authentication Flow Details
 1. User opens `/login` and launches Tesla's official authentication portal via the **Open Tesla Login** button.
+   - The server generates a PKCE `code_verifier` and stores it in a secure, HTTP-only cookie.
 2. After successful sign-in, Tesla redirects to `https://auth.tesla.com/void/callback?...` with the authorization code in the query string.
 3. The user copies the complete callback URL and submits it back to `/login`.
-4. The backend exchanges the code for access + refresh tokens, returns them to the browser, and registers a service worker.
-5. The service worker injects the token bundle as a custom header for all dashboard requests and persists updates in IndexedDB.
+4. The backend retrieves the `code_verifier` from the cookie to exchange the code for access + refresh tokens.
+5. Tokens are returned to the browser, and the service worker injects the token bundle as a custom header for all dashboard requests and persists updates in IndexedDB.
 
 Tokens never persist on the server. Logout clears the browser storage and unregisters the service worker. Revoking the token inside Tesla's account settings also forces a fresh login.
 
 ---
 
 ## Snapshot History & Refresh Behavior
-- Each visit to `/` or `/refresh` stores the raw payload in `localStorage` along with a timestamp.
-- The `/history` page builds cards from those snapshots, highlighting differences field-by-field using a custom diff helper.
-- Refreshing the dashboard always triggers a new Owner API call—there is no server-side cache.
+- **Client-Side Caching**: The Service Worker caches the dashboard HTML. Visiting `/` serves the cached version instantly without hitting the Tesla API.
+- **Explicit Refresh**: Clicking "Refresh" navigates to `/?refreshed=1`, forcing the Service Worker to bypass the cache, fetch fresh data from the server (triggering a Tesla API call), and update the cache.
+- **History**: Each successful fetch stores the raw payload in `localStorage` along with a timestamp. The `/history` page builds cards from those snapshots, highlighting differences field-by-field.
 
 ---
 

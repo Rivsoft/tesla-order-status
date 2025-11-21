@@ -6,15 +6,13 @@
 <script id="orders-data" type="application/json">{{ orders_json | tojson | safe }}</script>
 {% endif %}
 
-{% if refreshed %}
-<div class="mb-6 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-200 px-4 py-3 flex items-center justify-between" data-refresh-alert>
+<div id="refresh-alert" class="hidden mb-6 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-200 px-4 py-3 flex items-center justify-between" data-refresh-alert>
     <div class="flex items-center gap-3">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         <span>Latest order data loaded successfully.</span>
     </div>
     <button type="button" aria-label="Dismiss" class="text-emerald-200 hover:text-white" data-refresh-dismiss>&times;</button>
 </div>
-{% endif %}
 
 <div class="flex flex-wrap justify-center gap-8">
     {% if orders %}
@@ -581,5 +579,35 @@ document.querySelectorAll('[data-task-toggle]').forEach(button => {
         chevron?.classList.toggle('rotate-90', nextState);
     });
 });
+
+// Handle refresh alert dismissal
+const refreshAlert = document.getElementById('refresh-alert');
+const urlParams = new URLSearchParams(window.location.search);
+
+if (refreshAlert && urlParams.get('refreshed') === '1') {
+    refreshAlert.classList.remove('hidden');
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (refreshAlert) {
+            refreshAlert.classList.add('hidden');
+            // Clean up URL parameter without reloading
+            const url = new URL(window.location);
+            url.searchParams.delete('refreshed');
+            window.history.replaceState({}, '', url);
+        }
+    }, 5000);
+
+    // Manual dismiss
+    const dismissBtn = refreshAlert.querySelector('[data-refresh-dismiss]');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', () => {
+            refreshAlert.classList.add('hidden');
+            const url = new URL(window.location);
+            url.searchParams.delete('refreshed');
+            window.history.replaceState({}, '', url);
+        });
+    }
+}
 </script>
 {% endblock %}
