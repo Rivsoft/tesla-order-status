@@ -3,6 +3,7 @@ import { loadBundle, saveBundle, clearBundle } from './static/js/token-storage.j
 const TOKEN_HEADER = 'x-tesla-bundle'
 const CLEAR_HEADER = 'x-tesla-clear'
 const PUBLIC_PATHS = new Set(['/login', '/callback', '/logout'])
+const CACHE_NAME = 'tesla-order-status-v1'
 
 self.addEventListener('install', () => {
   self.skipWaiting()
@@ -36,6 +37,37 @@ async function handleFetch (request, url) {
     }
     const encoded = btoa(JSON.stringify(bundle))
     proxiedRequest = await cloneRequestWithHeader(request, encoded)
+  }
+
+  // Caching Logic for Dashboard
+  if (url.pathname === '/') {
+    const forceRefresh = url.searchParams.get('refreshed') === '1'
+    const cacheKey = new Request(url.origin + '/') // Normalize key to root
+
+    if (!forceRefresh) {
+      const cachedResponse = await caches.match(cacheKey)
+      if (cachedResponse) {
+        return cachedResponse
+      }
+    }
+
+    try {
+      const response = await fetch(proxiedRequest)
+      await processResponseHeaders(response)
+
+      if (response.status === 200) {
+        const cache = await caches.open(CACHE_NAME)
+        await cache.put(cacheKey, response.clone())
+      }
+      return response
+    } catch (err) {
+      // Fallback to cache if network fails
+      const cachedResponse = await caches.match(cacheKey)
+      if (cachedResponse) {
+        return cachedResponse
+      }
+      throw err
+    }
   }
 
   const response = await fetch(proxiedRequest)

@@ -28,13 +28,10 @@ APP_VERSION = "9.99.9-9999"
 
 class TeslaOrderMonitor:
     def __init__(self):
-        self.state = os.urandom(16).hex()
-        (
-            self.code_verifier,
-            self.code_challenge,
-        ) = self.generate_code_verifier_and_challenge()
+        pass
 
-    def generate_code_verifier_and_challenge(self) -> Tuple[str, str]:
+    def generate_login_params(self) -> Dict[str, str]:
+        state = os.urandom(16).hex()
         code_verifier = (
             base64.urlsafe_b64encode(os.urandom(32)).rstrip(b"=").decode("utf-8")
         )
@@ -45,19 +42,19 @@ class TeslaOrderMonitor:
             .rstrip(b"=")
             .decode("utf-8")
         )
-        return code_verifier, code_challenge
 
-    def get_auth_url(self) -> str:
         auth_params = {
             "client_id": CLIENT_ID,
             "redirect_uri": REDIRECT_URI,
             "response_type": "code",
             "scope": SCOPE,
-            "state": self.state,
-            "code_challenge": self.code_challenge,
+            "state": state,
+            "code_challenge": code_challenge,
             "code_challenge_method": CODE_CHALLENGE_METHOD,
         }
-        return f"{AUTH_URL}?{urllib.parse.urlencode(auth_params)}"
+        auth_url = f"{AUTH_URL}?{urllib.parse.urlencode(auth_params)}"
+
+        return {"state": state, "code_verifier": code_verifier, "auth_url": auth_url}
 
     def parse_redirect_url(self, redirected_url: str) -> str:
         parsed_url = urllib.parse.urlparse(redirected_url)
@@ -66,13 +63,15 @@ class TeslaOrderMonitor:
             raise ValueError("Authorization code not found in the redirected URL.")
         return query_params["code"][0]
 
-    def exchange_code_for_tokens(self, auth_code: str) -> Dict[str, Any]:
+    def exchange_code_for_tokens(
+        self, auth_code: str, code_verifier: str
+    ) -> Dict[str, Any]:
         token_data = {
             "grant_type": "authorization_code",
             "client_id": CLIENT_ID,
             "code": auth_code,
             "redirect_uri": REDIRECT_URI,
-            "code_verifier": self.code_verifier,
+            "code_verifier": code_verifier,
         }
         response = requests.post(TOKEN_URL, data=token_data)
         response.raise_for_status()

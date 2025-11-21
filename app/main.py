@@ -810,9 +810,17 @@ async def dashboard(request: Request):
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    auth_url = monitor.get_auth_url()
+    login_params = monitor.generate_login_params()
+    auth_url = login_params["auth_url"]
     response = templates.TemplateResponse(
         "login.html", {"request": request, "auth_url": auth_url}
+    )
+    response.set_cookie(
+        key="tesla_code_verifier",
+        value=login_params["code_verifier"],
+        httponly=True,
+        samesite="lax",
+        secure=False,
     )
     return _finalize_response(response, clear=True)
 
@@ -825,15 +833,24 @@ async def logout(request: Request):
 
 @app.post("/callback")
 async def callback(request: Request, url: str = Form(...)):
+    code_verifier = request.cookies.get("tesla_code_verifier")
+    if not code_verifier:
+        logger.error("Login failed: Missing code_verifier cookie")
+        return HTMLResponse(
+            content="Login failed: Missing session data (code_verifier). Please try logging in again.",
+            status_code=400,
+        )
+
     try:
         code = monitor.parse_redirect_url(url)
-        tokens = monitor.exchange_code_for_tokens(code)
+        tokens = monitor.exchange_code_for_tokens(code, code_verifier)
     except Exception as exc:
         logger.error("Login failed: %s", exc)
         return HTMLResponse(content=f"Login failed: {exc}", status_code=400)
 
     context = {"request": request, "tokens": tokens}
     response = templates.TemplateResponse("callback_success.html", context)
+    response.delete_cookie("tesla_code_verifier")
     return _finalize_response(response, tokens)
 
 
