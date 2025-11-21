@@ -1,186 +1,60 @@
 # Tesla Order Status Dashboard
 
-A self-hosted FastAPI application that surfaces the latest data from your Tesla order. It renders a polished dashboard with VIN metadata, delivery blockers, task progress, and raw payload details so you can track the journey from reservation to delivery without refreshing the Tesla app.
+Track every step of your Tesla order with a dashboard that highlights VIN information, delivery blockers, and historical snapshots. The easiest way to use it is the hosted site at **[tesla-tracker.rivsoft.org](https://tesla-tracker.rivsoft.org/)**—no installs or servers required.
 
-> **Heads-up:** This project is not affiliated with Tesla. It uses your own session tokens to call the publicly available Owner API. Treat the exported data with the same care as any other personal information.
+> **Important:** This community project is not affiliated with Tesla. You authenticate with your own Tesla account, and the data used to render the dashboard never leaves your browser.
 
 ---
 
-## Table of Contents
-- [Tesla Order Status Dashboard](#tesla-order-status-dashboard)
-  - [Table of Contents](#table-of-contents)
-  - [Highlights](#highlights)
-  - [Prerequisites](#prerequisites)
-  - [Running Locally with Poetry](#running-locally-with-poetry)
-  - [Running with Docker](#running-with-docker)
-    - [Using Docker Compose](#using-docker-compose)
-  - [Local Linting](#local-linting)
-  - [Authenticating with Tesla](#authenticating-with-tesla)
-  - [Refreshing \& Cached Data](#refreshing--cached-data)
-  - [Utilities](#utilities)
-  - [Privacy-Preserving Visit Metrics](#privacy-preserving-visit-metrics)
-  - [Project Layout](#project-layout)
-  - [Troubleshooting](#troubleshooting)
-  - [Contributing](#contributing)
+## Try It Now
+1. Visit [tesla-tracker.rivsoft.org](https://tesla-tracker.rivsoft.org/).
+2. Click **Log In** to open Tesla's official sign-in page in a new tab.
+3. After signing in, copy the full callback URL Tesla displays and paste it back into the dashboard form.
+4. The page refreshes with your order timeline, VIN insights, delivery blockers, and task list.
+5. Use **Refresh Orders** anytime you want the latest data, and open **History** to compare with older snapshots that stay in your browser.
+
+Need to reset everything? Use **Logout** or clear the site data in your browser—no data is kept on the server.
 
 ---
 
 ## Highlights
-- **Rich dashboard** – responsive cards with VIN image carousel, decoded VIN modal, delivery blockers, and order task timelines.
-- **Insight extraction** – delivery, finance, registration, and metadata panels sourced from the Tesla Owner API payload.
-- **Reusable modal system** – VIN decode details are available on-demand instead of dumping everything into the main grid.
-- **Client-held tokens** – OAuth tokens live inside the user's browser (IndexedDB + service worker headers) so the server never stores reusable credentials.
-- **Local snapshot history** – the `/history` view keeps browser-only snapshots with diff summaries and scrollable raw payload panels for deep dives without blowing up the layout.
-- **True dark theme** – minimal motion and color-coded states for quick scanning.
+- **Live order view**: Keep tabs on VIN assignment, delivery tasks, financing, registration, and raw payload details.
+- **Snapshot history**: Capture browser-only versions of each update and see what changed at a glance.
+- **On-demand refresh**: Pull new data from Tesla's Owner API whenever you like.
+- **Dark-mode friendly**: Carefully tuned colors for quick scanning day or night.
 
 ---
 
-- **FastAPI** (`app/main.py`) serves HTML views using Jinja2 templates and exposes `/`, `/login`, `/refresh`, and `/history` routes. Pages only render when a valid Tesla token bundle is supplied via a custom header.
-- **Monitor service** (`app/monitor.py`) manages Tesla OAuth flows, refreshes tokens on the fly, and normalizes the nested JSON structure into UI-friendly dictionaries.
-- **VIN decoder** (`app/vin_decoder.py`) provides offline decoding for the assigned VIN so you can see motor, factory, and battery details.
-- **Service worker** (`app/static/sw.js`) injects the opaque token bundle into every backend request and persists updates back to IndexedDB, creating a transparent privacy-preserving proxy.
-- **Templates** (`app/templates/`) implement the UI while client-side scripts capture history snapshots in `localStorage`.
+## Privacy & Safety
+- OAuth tokens are stored in your browser (IndexedDB) and are only sent to the server for the single request you initiate.
+- Snapshot history and diffing live entirely in your browser (localStorage); nothing is uploaded.
+- Lightweight visit metrics stay anonymized and exist solely to help the maintainer understand aggregate usage of the hosted site.
+- Handle any downloaded data the same way you would treat information inside the Tesla app.
 
 ---
 
-## Prerequisites
-- Tesla account with an active order (needed to complete the OAuth flow).
-- **Python 3.11+** with [Poetry](https://python-poetry.org/) for dependency management.
+## Questions or Issues?
+The best place to report bugs, ask for help, or request features is the [GitHub Issues page](https://github.com/Rivsoft/tesla-order-status/issues).
+
+When opening an issue, please share:
+- A brief description of the problem or idea.
+- Steps to reproduce it (if applicable).
+- Screenshots or logs that illustrate the issue (scrub personal info first).
+
+Check existing issues before filing a new one—your question might already be answered.
 
 ---
 
-## Running Locally with Poetry
-1. Install Poetry (once):
-   ```bash
-   pip install poetry
-   ```
-2. Install dependencies:
-   ```bash
-   poetry install
-   ```
-3. Launch FastAPI in autoreload mode:
-   ```bash
-   poetry run uvicorn app.main:app --reload
-   ```
-4. Visit [http://localhost:8000](http://localhost:8000).
-
-Use `poetry run uvicorn app.main:app --reload --port 9000` if you need a different port.
-
----
-
-## Running with Docker
-Dependencies install straight from `pyproject.toml` using Poetry inside the image—no `requirements.txt` export needed.
-
-```bash
-# Build the image
-docker build -t tesla-order-status .
-
-# Run the container, exposing FastAPI on localhost:8000
-docker run --rm -p 8000:8000 tesla-order-status
-```
-
-Swap the first port in `-p` (e.g., `-p 9000:8000`) if you want to expose it somewhere else. Once the container is running, visit `http://localhost:8000` and follow the same Tesla OAuth flow as the local Poetry setup.
-
-### Using Docker Compose
-If you prefer a single command that builds and runs via `docker-compose.yml`:
-
-```bash
-docker compose up --build
-```
-
-Compose maps port `8000` automatically (edit `docker-compose.yml` to change it) and restarts the app unless stopped. Stop with `Ctrl+C` or run `docker compose down`.
-
----
-
-## Local Linting
-Run the same Super Linter configuration locally (Docker required):
-
-```bash
-poetry run python scripts/run_super_linter.py
-```
-
-This script mounts the repository into the official Super Linter container (`ghcr.io/github/super-linter:slim-latest` by default) with `RUN_LOCAL=true`. Set `SUPER_LINTER_IMAGE` if you need to pin a different tag.
-
----
-
-## Authenticating with Tesla
-1. Navigate to `/login`.
-2. Click **Open Tesla Login** – a new tab will load `auth.tesla.com`.
-3. Complete the login; Tesla will redirect you to `https://auth.tesla.com/void/callback?...` and show a "Page Not Found" message.
-4. Copy the entire callback URL from the browser address bar.
-5. Paste it into the form on `/login` and submit.
-
-The callback response stores the access + refresh token bundle inside your browser's IndexedDB, registers the service worker, and immediately redirects back to the dashboard. Tokens never persist on the server. Use **Logout** (or revoke the token inside your Tesla account) to wipe the client-side store at any time.
-
----
-
-## Refreshing & Cached Data
-- Every dashboard load sends your locally stored token bundle to FastAPI, which in turn calls Tesla's Owner API just for that request—no shared server cache exists.
-- Click **Refresh Orders** (or load `/refresh`) to trigger a brand-new API call and surface a success banner. Your browser also stores snapshots in `localStorage` so the `/history` page can highlight changes without leaking data to the server.
-- Each order card still shows the raw payload inside a collapsible block in case you want to inspect the original Tesla response.
-- The `/history` page mirrors that payload with a toggleable, scrollable viewer plus change summaries so you can diff snapshots without leaving the browser.
-
----
-
-## Utilities
-| Tool | Command | Description |
-| ---- | ------- | ----------- |
-| VIN decoder regression | `poetry run python scripts/validate_vin_decoder.py` | Calls NHTSA's VPIC API for several sample VINs and compares the results with the bundled decoder output. Requires an internet connection. |
-
----
-
-## Privacy-Preserving Visit Metrics
-The dashboard now records lightweight visit counts to help you understand how often the main pages are loaded while avoiding any collection of personally identifiable information.
-
-- Metrics only include anonymous tallies for the `/`, `/history`, and `/refresh` routes. No IP addresses, user agents, or tokens are stored.
-- Aggregated counts are logged under the `visit-metrics` prefix, for example: `visit-metrics total=42 breakdown=/:30, /history:8, /refresh:4`.
-- The collector runs in-memory and resets on process restart. To tune or disable it, set these environment variables before launching the app:
-  - `ENABLE_VISIT_METRICS=0` — completely disable tracking (default is `1`).
-  - `METRIC_LOG_EVERY=25` — log after every _N_ recorded visits (default 25).
-  - `METRIC_LOG_INTERVAL=300` — ensure a log at least every _N_ seconds even if traffic is low (default 300 seconds).
-
-Review the application logs to see high-level usage without exposing visitor data.
-
----
-
-## Project Layout
-```text
-app/
-  __init__.py
-  main.py            # FastAPI entrypoint & routes
-  monitor.py         # Tesla API client + caching helpers
-  tesla_stores.py    # Enum of routing locations
-  vin_decoder.py     # Offline VIN metadata decoder
-  templates/
-    base.html
-    index.html
-    login.html
-    history.html
-    callback_success.html
-    logout.html
-  static/
-    sw.js            # Service worker that injects token headers
-    js/
-      app-init.js
-      sw-register.js
-      token-storage.js
-README.md
-poetry.lock
-pyproject.toml
-scripts/
-  validate_vin_decoder.py
-```
-
----
-
-## Troubleshooting
-- **Redirect loop to /login** – your session may have expired or been cleared. Log in again to mint fresh tokens.
-- **401 or rate limiting errors** – Tesla may have revoked the token; log out and repeat the OAuth flow.
-- **VIN modal renders off-screen** – ensure you are loading the bundled CSS (no CDN dependency) and check the browser console for blocking extensions.
-- **Changes not visible** – restart the Poetry-run Uvicorn server after editing templates or Python modules.
+## Want to Self-Host?
+Self-hosting is totally optional. If you prefer to run your own instance, clone this repository and read `docs/TECHNICAL_GUIDE.md` for detailed setup steps, architecture notes, and troubleshooting tips. Keep your Tesla credentials secure and avoid exposing the app to the public internet without proper safeguards.
 
 ---
 
 ## Contributing
-Issues and pull requests are welcome. If you add new Tesla API calls, please avoid committing personal data and update this README so others understand the new behavior.
+Pull requests are welcome! Focus on user experience, privacy, and accessibility, and update the README whenever you add a behavior end users should know about. Please do not include personal Tesla data in commits or screenshots.
+
+---
+
+## Credits & Disclaimer
+Built by Tesla owners for fellow owners. This project is provided "as is" with no warranty. Use at your own risk, and always protect your Tesla account details.
 
