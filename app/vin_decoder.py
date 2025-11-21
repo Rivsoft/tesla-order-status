@@ -1,4 +1,5 @@
-from typing import Dict, Any
+from typing import Any, Dict, Optional
+
 
 class VinDecoder:
     def __init__(self):
@@ -10,7 +11,7 @@ class VinDecoder:
             "XP7": "Tesla Inc. (Germany)",
             "SFZ": "Tesla Inc. (UK)",
         }
-        
+
         self.model_map = {
             "S": "Model S",
             "3": "Model 3",
@@ -18,9 +19,9 @@ class VinDecoder:
             "Y": "Model Y",
             "R": "Roadster",
             "T": "Semi",
-            "C": "Cybertruck"
+            "C": "Cybertruck",
         }
-        
+
         self.body_type_map = {
             "A": "Liftback / 5-door (Model S LHD)",
             "B": "Liftback / 5-door (Model S RHD)",
@@ -33,7 +34,7 @@ class VinDecoder:
             "J": "Pickup / Light Duty (Cybertruck AWD)",
             "K": "Pickup / Light Duty (Cybertruck Tri-Motor)",
             "P": "Day-cab Tractor (Semi LHD)",
-            "R": "Day-cab Tractor (Semi RHD)"
+            "R": "Day-cab Tractor (Semi RHD)",
         }
 
         self.restraint_system_map = {
@@ -47,7 +48,7 @@ class VinDecoder:
             "B": "Manual Seatbelts (Front, Rear*2) with Front Airbags & Side Inflatable Restraints",
             "C": "Manual Seatbelts (Front, Rear*3) with Front Airbags & Side Inflatable Restraints",
             "D": "Manual Seatbelts (Front, Rear*2) with Front Airbags & Side Inflatable Restraints",
-            "H": "Manual Seatbelts (Front, Rear*3) with Front Airbags & Side Inflatable Restraints (Truck)"
+            "H": "Manual Seatbelts (Front, Rear*3) with Front Airbags & Side Inflatable Restraints (Truck)",
         }
 
         self.battery_type_map = {
@@ -55,7 +56,7 @@ class VinDecoder:
             "F": "Lithium Iron Phosphate (LFP)",
             "H": "Lithium Ion - High Capacity",
             "S": "Lithium Ion - Standard",
-            "V": "Lithium Ion - Ultra High Capacity"
+            "V": "Lithium Ion - Ultra High Capacity",
         }
 
         self.motor_map = {
@@ -78,7 +79,7 @@ class VinDecoder:
             "S": "Single Motor (Standard)",
             "T": "Dual Motor (Highland/New)",
             "X": "Dual Motor (Cybertruck)",
-            "Y": "Tri Motor (Cyberbeast)"
+            "Y": "Tri Motor (Cyberbeast)",
         }
 
         self.year_map = {
@@ -121,10 +122,10 @@ class VinDecoder:
             "C": "Shanghai, China",
             "F": "Fremont, California, USA",
             "P": "Palo Alto, California, USA",
-            "R": "Reno, Nevada, USA"
+            "R": "Reno, Nevada, USA",
         }
 
-    def decode(self, vin: str) -> Dict[str, Any]:
+    def decode(self, vin: str) -> Optional[Dict[str, Any]]:
         if not vin or len(vin) != 17:
             return None
 
@@ -143,10 +144,13 @@ class VinDecoder:
             "Manufacturer": self.wmi_map.get(wmi, "Unknown"),
             "Model": self.model_map.get(model_code, "Unknown"),
             "Body Type": self.body_type_map.get(body_code, "Unknown"),
-            "Restraint System": self.restraint_system_map.get(restraint_code, "Unknown"),
+            "Restraint System": self.restraint_system_map.get(
+                restraint_code, "Unknown"
+            ),
             "Battery Type": self.battery_type_map.get(battery_code, "Electric"),
             "Motor": self.motor_map.get(motor_code, "Unknown"),
             "Year": self.year_map.get(year_code, "Unknown"),
             "Factory": self.plant_map.get(plant_code, "Unknown"),
-            "Serial Number": serial
+            "Serial Number": serial,
+            "Check Digit": check_digit,
         }

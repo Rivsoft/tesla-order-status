@@ -6,21 +6,18 @@ Usage:
 The script does live HTTP calls to https://vpic.nhtsa.dot.gov, so it requires
 an active internet connection.
 """
+
 from __future__ import annotations
 
 import json
 import pathlib
 import sys
-from typing import Dict, Iterable, Tuple
+from typing import TYPE_CHECKING, Dict, Tuple
 
 import requests
 
-# Make sure `app` is importable when executing the script from the repo root.
-REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
-from app.vin_decoder import VinDecoder
+if TYPE_CHECKING:  # pragma: no cover - hinting helper
+    from app.vin_decoder import VinDecoder
 
 VPIC_URL = "https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/{vin}?format=json"
 
@@ -33,6 +30,17 @@ SAMPLE_VINS: Dict[str, str] = {
     "Model Y": "7SAYGAEE8NF354486",
     "Cybertruck": "7G2CEHED7RF000001",
 }
+
+
+def load_decoder() -> "VinDecoder":
+    repo_root = pathlib.Path(__file__).resolve().parents[1]
+    repo_path = str(repo_root)
+    if repo_path not in sys.path:
+        sys.path.insert(0, repo_path)
+    from app.vin_decoder import VinDecoder
+
+    return VinDecoder()
+
 
 KEYS_TO_COMPARE: Tuple[Tuple[str, str], ...] = (
     ("Model", "Model"),
@@ -62,8 +70,7 @@ def compare_values(label: str, internal: str | None, official: str | None) -> st
         internal
         and official
         and (
-            internal.lower() in official.lower()
-            or official.lower() in internal.lower()
+            internal.lower() in official.lower() or official.lower() in internal.lower()
         )
     ):
         status = "MATCH"
@@ -73,7 +80,7 @@ def compare_values(label: str, internal: str | None, official: str | None) -> st
 
 
 def main() -> None:
-    decoder = VinDecoder()
+    decoder = load_decoder()
     for name, vin in SAMPLE_VINS.items():
         ours = decoder.decode(vin)
         official = decode_official(vin)

@@ -1,3 +1,3 @@
-import { registerServiceWorker } from './sw-register.js';
+import { registerServiceWorker } from './sw-register.js'
 
-registerServiceWorker();
+registerServiceWorker()

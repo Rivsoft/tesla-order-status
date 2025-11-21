@@ -89,6 +89,17 @@ Compose maps port `8000` automatically (edit `docker-compose.yml` to change it) 
 
 ---
 
+## Local Linting
+Run the same Super Linter configuration locally (Docker required):
+
+```bash
+poetry run python scripts/run_super_linter.py
+```
+
+This script mounts the repository into the official Super Linter container (`ghcr.io/github/super-linter:slim-latest` by default) with `RUN_LOCAL=true`. Set `SUPER_LINTER_IMAGE` if you need to pin a different tag.
+
+---
+
 ## Authenticating with Tesla
 1. Navigate to `/login`.
 2. Click **Open Tesla Login** – a new tab will load `auth.tesla.com`.
@@ -116,7 +127,7 @@ The callback response stores the access + refresh token bundle inside your brows
 ---
 
 ## Project Layout
-```
+```text
 app/
   __init__.py
   main.py            # FastAPI entrypoint & routes

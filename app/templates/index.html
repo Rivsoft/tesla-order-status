@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_macros.html" as ui %}
 
 {% block content %}
 {% if orders %}
@@ -149,6 +150,7 @@
                 {% set actionable_tasks = task_list|selectattr('actionable')|list|length %}
                 {% set waiting_tasks = task_list|selectattr('waiting_reason')|rejectattr('complete')|list|length %}
                 {% set info_tasks = task_count - (completed_tasks + actionable_tasks + waiting_tasks) %}
+                {% set info_display = info_tasks if info_tasks > 0 else 0 %}
                 <div>
                     <div class="flex flex-col gap-2 mb-4">
                         <h3 class="text-zinc-400 text-sm uppercase tracking-wider font-semibold">Order Tasks</h3>
@@ -169,7 +171,7 @@
                             </div>
                             <div class="bg-zinc-800/60 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-300">
                                 <p class="uppercase tracking-wide text-[0.6rem]">Other</p>
-                                <p class="text-lg font-semibold text-white">{{ info_tasks if info_tasks > 0 else 0 }}</p>
+                                <p class="text-lg font-semibold text-white">{{ info_display }}</p>
                             </div>
                         </div>
                         {% endif %}
@@ -241,47 +243,21 @@
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <div class="bg-zinc-900/40 rounded-2xl p-5 border border-zinc-800/70 shadow-inner">
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <p class="text-sm font-semibold uppercase tracking-wide text-white">Delivery Logistics</p>
-                                <p class="text-xs text-zinc-500">Appointments, pickup routing, and readiness gates from Tesla tasks.</p>
-                            </div>
-                            <span class="text-[0.6rem] uppercase tracking-wide text-zinc-500">Live</span>
-                        </div>
-                        {% if order.insights.delivery %}
-                        <dl class="mt-4 space-y-3">
-                            {% for item in order.insights.delivery %}
-                            <div>
-                                <dt class="text-[0.7rem] uppercase tracking-wide text-zinc-500">{{ item.label }}</dt>
-                                <dd class="text-white text-sm break-words" title="{{ item.value | striptags }}">{{ item.value | safe }}</dd>
-                            </div>
-                            {% endfor %}
-                        </dl>
-                        {% else %}
-                        <p class="text-xs text-zinc-500 mt-3">No delivery metadata available.</p>
-                        {% endif %}
-                    </div>
+                    {{ ui.insight_panel(
+                        "Delivery Logistics",
+                        "Appointments, pickup routing, and readiness gates from Tesla tasks.",
+                        order.insights.delivery or [],
+                        "No delivery metadata available.",
+                        "Live"
+                    ) }}
 
                     {% set registration_items = order.insights.registration or [] %}
-                    <div class="bg-zinc-900/40 rounded-2xl p-5 border border-zinc-800/70 shadow-inner">
-                        <div>
-                            <p class="text-sm font-semibold uppercase tracking-wide text-white">Registration & Order</p>
-                            <p class="text-xs text-zinc-500">Paperwork milestones and regional routing pulled from Tesla.</p>
-                        </div>
-                        {% if registration_items %}
-                        <dl class="mt-4 space-y-3">
-                            {% for item in registration_items %}
-                            <div>
-                                <dt class="text-[0.7rem] uppercase tracking-wide text-zinc-500">{{ item.label }}</dt>
-                                <dd class="text-white text-sm break-words">{{ item.value | safe }}</dd>
-                            </div>
-                            {% endfor %}
-                        </dl>
-                        {% else %}
-                        <p class="text-xs text-zinc-500 mt-3">No registration data surfaced.</p>
-                        {% endif %}
-                    </div>
+                    {{ ui.insight_panel(
+                        "Registration &amp; Order",
+                        "Paperwork milestones and regional routing pulled from Tesla.",
+                        registration_items,
+                        "No registration data surfaced."
+                    ) }}
                 </div>
 
                 {% set finance_items = order.insights.finance or [] %}
@@ -289,37 +265,21 @@
                 {% if finance_items or metadata_items %}
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {% if finance_items %}
-                    <div class="bg-zinc-900/40 rounded-2xl p-5 border border-zinc-800/70 shadow-inner">
-                        <div>
-                            <p class="text-sm font-semibold uppercase tracking-wide text-white">Finance Snapshot</p>
-                            <p class="text-xs text-zinc-500">Down payments, lender status, and Tesla billing metadata.</p>
-                        </div>
-                        <dl class="mt-4 space-y-3">
-                            {% for item in finance_items %}
-                            <div>
-                                <dt class="text-[0.7rem] uppercase tracking-wide text-zinc-500">{{ item.label }}</dt>
-                                <dd class="text-white text-sm break-words" title="{{ item.value | striptags }}">{{ item.value | safe }}</dd>
-                            </div>
-                            {% endfor %}
-                        </dl>
-                    </div>
+                    {{ ui.insight_panel(
+                        "Finance Snapshot",
+                        "Down payments, lender status, and Tesla billing metadata.",
+                        finance_items,
+                        "No finance data available."
+                    ) }}
                     {% endif %}
 
                     {% if metadata_items %}
-                    <div class="bg-zinc-900/40 rounded-2xl p-5 border border-zinc-800/70 shadow-inner">
-                        <div>
-                            <p class="text-sm font-semibold uppercase tracking-wide text-white">Order Metadata & Options</p>
-                            <p class="text-xs text-zinc-500">Internal statuses plus decoded market option codes.</p>
-                        </div>
-                        <dl class="mt-4 space-y-3">
-                            {% for item in metadata_items %}
-                            <div>
-                                <dt class="text-[0.7rem] uppercase tracking-wide text-zinc-500">{{ item.label }}</dt>
-                                <dd class="text-white text-sm break-words" title="{{ item.value | striptags }}">{{ item.value | safe }}</dd>
-                            </div>
-                            {% endfor %}
-                        </dl>
-                    </div>
+                    {{ ui.insight_panel(
+                        "Order Metadata &amp; Options",
+                        "Internal statuses plus decoded market option codes.",
+                        metadata_items,
+                        "No metadata available."
+                    ) }}
                     {% endif %}
                 </div>
                 {% endif %}
