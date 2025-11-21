@@ -72,6 +72,9 @@ jobs:
 
       - name: Determine release version
         id: release_version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(semantic-release version --print)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
