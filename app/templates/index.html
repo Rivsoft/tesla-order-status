@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% import "_macros.html" as ui %}
+{% import "_macros.html" as ui with context %}
 
 {% block content %}
 {% if orders %}
@@ -10,7 +10,7 @@
 <div class="mb-6 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-200 px-4 py-3 flex items-center justify-between" data-refresh-alert>
     <div class="flex items-center gap-3">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        <span>Latest order data loaded successfully.</span>
+        <span>{{ _('Latest order data loaded successfully.') }}</span>
     </div>
     <button type="button" aria-label="Dismiss" class="text-emerald-200 hover:text-white" data-refresh-dismiss>&times;</button>
 </div>
@@ -39,7 +39,7 @@
                 {% if order.image_urls %}
                 <img src="{{ order.image_urls[0] }}" alt="Tesla Vehicle" data-slider-image class="w-full h-full object-contain transform transition duration-700 ease-in-out">
                 {% else %}
-                <div class="text-zinc-500 text-sm">Vehicle preview unavailable</div>
+                <div class="text-zinc-500 text-sm">{{ _('Vehicle preview unavailable') }}</div>
                 {% endif %}
 
                 {% if order.image_urls|length > 1 %}
@@ -60,27 +60,27 @@
 
             <div class="p-6 grid grid-cols-2 gap-6 bg-zinc-800/50">
                 <div>
-                    <span class="text-zinc-500 text-xs uppercase tracking-wider font-semibold">VIN</span>
+                    <span class="text-zinc-500 text-xs uppercase tracking-wider font-semibold">{{ _('VIN') }}</span>
                     <div class="flex items-center gap-2 mt-1">
                         <div class="font-mono text-lg text-white">{{ order.vin }}</div>
                         {% if order.vin_details %}
                         <button type="button" class="text-xs text-blue-300 hover:text-white px-3 py-1 border border-blue-500/40 rounded-full transition"
                                 data-vin-trigger data-vin-template="vin-panel-{{ loop.index }}" data-vin-title="VIN {{ order.vin }}">
-                            Decode
+                            {{ _('Decode') }}
                         </button>
                         {% endif %}
                     </div>
                 </div>
                 <div>
-                    <span class="text-zinc-500 text-xs uppercase tracking-wider font-semibold">Location</span>
+                    <span class="text-zinc-500 text-xs uppercase tracking-wider font-semibold">{{ _('Location') }}</span>
                     <div class="text-lg text-white mt-1 truncate" title="{{ order.location }}">{{ order.location }}</div>
                 </div>
                 <div>
-                    <span class="text-zinc-500 text-xs uppercase tracking-wider font-semibold">Delivery Window</span>
+                    <span class="text-zinc-500 text-xs uppercase tracking-wider font-semibold">{{ _('Delivery Window') }}</span>
                     <div class="text-lg text-white mt-1">{{ order.delivery_window }}</div>
                 </div>
                 <div>
-                    <span class="text-zinc-500 text-xs uppercase tracking-wider font-semibold">Appointment</span>
+                    <span class="text-zinc-500 text-xs uppercase tracking-wider font-semibold">{{ _('Appointment') }}</span>
                     <div class="text-lg text-tesla-red font-bold mt-1">{{ order.delivery_date }}</div>
                 </div>
             </div>
@@ -103,39 +103,39 @@
                 <div class="space-y-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-6 text-sm">
                         <div class="flex flex-col">
-                            <span class="text-zinc-500 text-xs mb-1">Manufacturer</span>
+                            <span class="text-zinc-500 text-xs mb-1">{{ _('Manufacturer') }}</span>
                             <span class="text-zinc-300 font-medium">{{ order.vin_details.Manufacturer }}</span>
                         </div>
                         <div class="flex flex-col">
-                            <span class="text-zinc-500 text-xs mb-1">Model Year</span>
+                            <span class="text-zinc-500 text-xs mb-1">{{ _('Model Year') }}</span>
                             <span class="text-zinc-300 font-medium">{{ order.vin_details.Year }}</span>
                         </div>
                         <div class="flex flex-col">
-                            <span class="text-zinc-500 text-xs mb-1">Model</span>
+                            <span class="text-zinc-500 text-xs mb-1">{{ _('Model') }}</span>
                             <span class="text-zinc-300 font-medium">{{ order.vin_details.Model }}</span>
                         </div>
                         <div class="flex flex-col">
-                            <span class="text-zinc-500 text-xs mb-1">Body Type</span>
+                            <span class="text-zinc-500 text-xs mb-1">{{ _('Body Type') }}</span>
                             <span class="text-zinc-300 font-medium">{{ order.vin_details['Body Type'] }}</span>
                         </div>
                         <div class="flex flex-col">
-                            <span class="text-zinc-500 text-xs mb-1">Battery Type</span>
+                            <span class="text-zinc-500 text-xs mb-1">{{ _('Battery Type') }}</span>
                             <span class="text-zinc-300 font-medium">{{ order.vin_details['Battery Type'] }}</span>
                         </div>
                         <div class="flex flex-col">
-                            <span class="text-zinc-500 text-xs mb-1">Motor / Drive Unit</span>
+                            <span class="text-zinc-500 text-xs mb-1">{{ _('Motor / Drive Unit') }}</span>
                             <span class="text-zinc-300 font-medium">{{ order.vin_details.Motor }}</span>
                         </div>
                         <div class="flex flex-col md:col-span-2 lg:grid-cols-3">
-                            <span class="text-zinc-500 text-xs mb-1">Restraint System</span>
+                            <span class="text-zinc-500 text-xs mb-1">{{ _('Restraint System') }}</span>
                             <span class="text-zinc-300 font-medium">{{ order.vin_details['Restraint System'] }}</span>
                         </div>
                         <div class="flex flex-col">
-                            <span class="text-zinc-500 text-xs mb-1">Factory</span>
+                            <span class="text-zinc-500 text-xs mb-1">{{ _('Factory') }}</span>
                             <span class="text-zinc-300 font-medium">{{ order.vin_details.Factory }}</span>
                         </div>
                         <div class="flex flex-col">
-                            <span class="text-zinc-500 text-xs mb-1">Serial Number</span>
+                            <span class="text-zinc-500 text-xs mb-1">{{ _('Serial Number') }}</span>
                             <span class="text-zinc-300 font-mono">{{ order.vin_details['Serial Number'] }}</span>
                         </div>
                     </div>
@@ -153,24 +153,24 @@
                 {% set info_display = info_tasks if info_tasks > 0 else 0 %}
                 <div>
                     <div class="flex flex-col gap-2 mb-4">
-                        <h3 class="text-zinc-400 text-sm uppercase tracking-wider font-semibold">Order Tasks</h3>
-                        <p class="text-xs text-zinc-500">{{ task_count }} step{{ '' if task_count == 1 else 's' }} tracked from Tesla's delivery checklist.</p>
+                        <h3 class="text-zinc-400 text-sm uppercase tracking-wider font-semibold">{{ _('Order Tasks') }}</h3>
+                        <p class="text-xs text-zinc-500">{{ task_count }} {{ _('step') if task_count == 1 else _('steps') }} {{ _("tracked from Tesla's delivery checklist.") }}</p>
                         {% if task_count %}
                         <div class="grid grid-cols-1 sm:grid-cols-4 gap-2 text-xs">
                             <div class="bg-emerald-500/5 border border-emerald-500/20 rounded-lg px-3 py-2 text-emerald-200">
-                                <p class="uppercase tracking-wide text-[0.6rem]">Done</p>
+                                <p class="uppercase tracking-wide text-[0.6rem]">{{ _('Done') }}</p>
                                 <p class="text-lg font-semibold text-white">{{ completed_tasks }}</p>
                             </div>
                             <div class="bg-blue-500/5 border border-blue-500/20 rounded-lg px-3 py-2 text-blue-200">
-                                <p class="uppercase tracking-wide text-[0.6rem]">Action needed</p>
+                                <p class="uppercase tracking-wide text-[0.6rem]">{{ _('Action needed') }}</p>
                                 <p class="text-lg font-semibold text-white">{{ actionable_tasks }}</p>
                             </div>
                             <div class="bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2 text-amber-100">
-                                <p class="uppercase tracking-wide text-[0.6rem]">Waiting on Tesla</p>
+                                <p class="uppercase tracking-wide text-[0.6rem]">{{ _('Waiting on Tesla') }}</p>
                                 <p class="text-lg font-semibold text-white">{{ waiting_tasks }}</p>
                             </div>
                             <div class="bg-zinc-800/60 border border-zinc-700 rounded-lg px-3 py-2 text-zinc-300">
-                                <p class="uppercase tracking-wide text-[0.6rem]">Other</p>
+                                <p class="uppercase tracking-wide text-[0.6rem]">{{ _('Other') }}</p>
                                 <p class="text-lg font-semibold text-white">{{ info_display }}</p>
                             </div>
                         </div>
@@ -179,16 +179,16 @@
 
                     <div class="space-y-3">
                         {% for task in task_list %}
-                        {% set state_label = 'Info only' %}
+                        {% set state_label = _('Info only') %}
                         {% set state_classes = 'bg-zinc-800/60 text-zinc-200 border border-zinc-700' %}
                         {% if task.complete %}
-                            {% set state_label = 'Complete' %}
+                            {% set state_label = _('Complete') %}
                             {% set state_classes = 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30' %}
                         {% elif task.actionable %}
-                            {% set state_label = 'Action required' %}
+                            {% set state_label = _('Action required') %}
                             {% set state_classes = 'bg-blue-500/10 text-blue-200 border border-blue-500/30' %}
                         {% elif task.waiting_reason %}
-                            {% set state_label = 'Waiting on Tesla' %}
+                            {% set state_label = _('Waiting on Tesla') %}
                             {% set state_classes = 'bg-amber-500/10 text-amber-200 border border-amber-500/30' %}
                         {% endif %}
                         {% set show_waiting = task.waiting_reason and not task.complete %}
@@ -200,9 +200,9 @@
                                     class="flex w-full items-center justify-between gap-3 text-left"
                                     data-task-toggle
                                     aria-expanded="false"
-                                    title="Tesla status: {{ task.status }}">
+                                    title="Tesla status: {{ _(task.status) }}">
                                 <div>
-                                    <p class="text-sm font-semibold text-white">{{ task.name }}</p>
+                                    <p class="text-sm font-semibold text-white">{{ _(task.name) }}</p>
                                 </div>
                                 <div class="flex items-center gap-2">
                                     <span class="text-[0.65rem] px-3 py-1 rounded-full font-semibold uppercase tracking-wide {{ state_classes }}">{{ state_label }}</span>
@@ -211,10 +211,10 @@
                             </button>
                             <div class="mt-3 space-y-3 hidden" data-task-body>
                                 {% if show_detail %}
-                                <p class="text-xs text-zinc-400 leading-relaxed">{{ task.details }}</p>
+                                <p class="text-xs text-zinc-400 leading-relaxed">{{ _(task.details) }}</p>
                                 {% endif %}
                                 {% if show_waiting %}
-                                <p class="text-xs text-amber-200 bg-amber-500/5 border border-amber-500/10 rounded-lg px-3 py-2">{{ task.waiting_reason }}</p>
+                                <p class="text-xs text-amber-200 bg-amber-500/5 border border-amber-500/10 rounded-lg px-3 py-2">{{ _(task.waiting_reason) }}</p>
                                 {% endif %}
                                 {% if task.metadata %}
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
@@ -237,26 +237,26 @@
                             </div>
                         </div>
                         {% else %}
-                        <p class="text-xs text-zinc-500">No tasks surfaced for this order.</p>
+                        <p class="text-xs text-zinc-500">{{ _('No tasks surfaced for this order.') }}</p>
                         {% endfor %}
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {{ ui.insight_panel(
-                        "Delivery Logistics",
-                        "Appointments, pickup routing, and readiness gates from Tesla tasks.",
+                        _("Delivery Logistics"),
+                        _("Appointments, pickup routing, and readiness gates from Tesla tasks."),
                         order.insights.delivery or [],
-                        "No delivery metadata available.",
+                        _("No delivery metadata available."),
                         "Live"
                     ) }}
 
                     {% set registration_items = order.insights.registration or [] %}
                     {{ ui.insight_panel(
-                        "Registration & Order",
-                        "Paperwork milestones and regional routing pulled from Tesla.",
+                        _("Registration & Order"),
+                        _("Paperwork milestones and regional routing pulled from Tesla."),
                         registration_items,
-                        "No registration data surfaced."
+                        _("No registration data surfaced.")
                     ) }}
                 </div>
 
@@ -266,19 +266,19 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {% if finance_items %}
                     {{ ui.insight_panel(
-                        "Finance Snapshot",
-                        "Down payments, lender status, and Tesla billing metadata.",
+                        _("Finance Snapshot"),
+                        _("Down payments, lender status, and Tesla billing metadata."),
                         finance_items,
-                        "No finance data available."
+                        _("No finance data available.")
                     ) }}
                     {% endif %}
 
                     {% if metadata_items %}
                     {{ ui.insight_panel(
-                        "Order Metadata & Options",
-                        "Internal statuses plus decoded market option codes.",
+                        _("Order Metadata & Options"),
+                        _("Internal statuses plus decoded market option codes."),
                         metadata_items,
-                        "No metadata available."
+                        _("No metadata available.")
                     ) }}
                     {% endif %}
                 </div>
@@ -286,12 +286,12 @@
 
                 {% if order.insights.blockers %}
                 <div class="bg-black/20 rounded-xl p-4 border border-amber-800/60">
-                    <p class="text-xs uppercase tracking-wide text-amber-300 mb-3">Active Delivery Blockers</p>
+                    <p class="text-xs uppercase tracking-wide text-amber-300 mb-3">{{ _('Active Delivery Blockers') }}</p>
                     <div class="space-y-2 text-sm">
                         {% for blocker in order.insights.blockers %}
                         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between border border-amber-800/40 rounded-lg px-3 py-2 bg-amber-500/10">
                             <span class="text-white font-semibold">{{ blocker.gate }}</span>
-                            <span class="text-amber-200 text-xs">Owner: {{ blocker.owner }} • When: {{ blocker.action_time }}</span>
+                            <span class="text-amber-200 text-xs">{{ _('Owner') }}: {{ blocker.owner }} • {{ _('When') }}: {{ blocker.action_time }}</span>
                         </div>
                         {% endfor %}
                     </div>
@@ -299,7 +299,7 @@
                 {% endif %}
 
                 <details class="bg-black/30 border border-zinc-800 rounded-xl p-4">
-                    <summary class="text-sm text-zinc-300 cursor-pointer">View Raw Tesla Payload</summary>
+                    <summary class="text-sm text-zinc-300 cursor-pointer">{{ _('View Raw Tesla Payload') }}</summary>
                     <pre class="mt-3 text-xs text-zinc-200 whitespace-pre-wrap max-h-96 overflow-auto">{{ order.raw_payload | tojson(indent=2) | safe }}</pre>
                 </details>
             </div>
@@ -310,11 +310,11 @@
         <div class="bg-zinc-800 p-8 rounded-full mb-6">
             <svg class="w-16 h-16 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
         </div>
-        <h3 class="text-2xl font-bold text-white mb-2">No Orders Found</h3>
-        <p class="text-zinc-400 max-w-md mx-auto mb-8">We couldn't find any active orders associated with your account. Try refreshing below or verify your Tesla credentials.</p>
+        <h3 class="text-2xl font-bold text-white mb-2">{{ _('No Orders Found') }}</h3>
+        <p class="text-zinc-400 max-w-md mx-auto mb-8">{{ _("We couldn't find any active orders associated with your account. Try refreshing below or verify your Tesla credentials.") }}</p>
         <div class="flex gap-4">
-            <a href="/refresh" class="px-6 py-3 rounded-full bg-white text-black font-semibold">Refresh Orders</a>
-            <a href="/settings" class="px-6 py-3 rounded-full border border-zinc-600 text-zinc-200">Update Settings</a>
+            <a href="/refresh" class="px-6 py-3 rounded-full bg-white text-black font-semibold">{{ _('Refresh Orders') }}</a>
+            <a href="/settings" class="px-6 py-3 rounded-full border border-zinc-600 text-zinc-200">{{ _('Update Settings') }}</a>
         </div>
     </div>
     {% endif %}

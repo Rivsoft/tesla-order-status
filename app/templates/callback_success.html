@@ -2,9 +2,9 @@
 
 {% block content %}
 <div class="max-w-lg mx-auto text-center space-y-4">
-    <h1 class="text-2xl font-semibold">Setting up your secure session…</h1>
-    <p class="text-zinc-400">We are saving your Tesla tokens locally so only your browser can reuse them. This page will redirect once everything is ready.</p>
-    <div class="animate-pulse text-sm text-zinc-500">Please keep this tab open.</div>
+    <h1 class="text-2xl font-semibold">{{ _('Setting up your secure session…') }}</h1>
+    <p class="text-zinc-400">{{ _('We are saving your Tesla tokens locally so only your browser can reuse them. This page will redirect once everything is ready.') }}</p>
+    <div class="animate-pulse text-sm text-zinc-500">{{ _('Please keep this tab open.') }}</div>
 </div>
 <script type="module">
 import { saveBundle } from '/static/js/token-storage.js';
@@ -21,7 +21,7 @@ async function bootstrap() {
         console.error('Unable to persist Tesla tokens', error);
         const msg = document.createElement('p');
         msg.className = 'text-red-400 text-sm mt-4';
-        msg.textContent = 'Something went wrong while saving your session. Please try logging in again.';
+        msg.textContent = '{{ _("Something went wrong while saving your session. Please try logging in again.") }}';
         document.querySelector('div.max-w-lg').appendChild(msg);
     }
 }

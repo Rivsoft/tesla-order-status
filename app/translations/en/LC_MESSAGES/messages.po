@@ -1,0 +1,1205 @@
+# English translations for PROJECT.
+# Copyright (C) 2025 ORGANIZATION
+# This file is distributed under the same license as the PROJECT project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2025.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2025-11-21 21:33+0100\n"
+"PO-Revision-Date: 2025-11-21 20:04+0100\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language: en\n"
+"Language-Team: en <LL@li.org>\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.17.0\n"
+
+#: app/main.py:29
+msgid "Vehicle Options"
+msgstr ""
+
+#: app/main.py:30
+msgid "Drive Options"
+msgstr ""
+
+#: app/main.py:31
+msgid "Performance Options"
+msgstr ""
+
+#: app/main.py:32
+msgid "Manufacturing Options"
+msgstr ""
+
+#: app/main.py:33
+msgid "Towing Options"
+msgstr ""
+
+#: app/main.py:34
+msgid "Battery Options"
+msgstr ""
+
+#: app/main.py:35
+msgid "Paint Options"
+msgstr ""
+
+#: app/main.py:36
+msgid "Wheels Options"
+msgstr ""
+
+#: app/main.py:37
+msgid "Suspension Options"
+msgstr ""
+
+#: app/main.py:38
+msgid "Interior Options"
+msgstr ""
+
+#: app/main.py:39
+msgid "Seating Options"
+msgstr ""
+
+#: app/main.py:40
+msgid "Software Options"
+msgstr ""
+
+#: app/main.py:41
+msgid "Connectivity Options"
+msgstr ""
+
+#: app/main.py:42
+msgid "Charging Options"
+msgstr ""
+
+#: app/main.py:43
+msgid "Hardware Options"
+msgstr ""
+
+#: app/main.py:44
+msgid "Protection Options"
+msgstr ""
+
+#: app/main.py:85
+msgid "Model 3 platform"
+msgstr ""
+
+#: app/main.py:86
+msgid "Model Y platform"
+msgstr ""
+
+#: app/main.py:87
+msgid "Model S platform"
+msgstr ""
+
+#: app/main.py:88
+msgid "Model X platform"
+msgstr ""
+
+#: app/main.py:89
+msgid "Rear-wheel drive single motor"
+msgstr ""
+
+#: app/main.py:90
+msgid "Long Range dual motor"
+msgstr ""
+
+#: app/main.py:91
+msgid "Performance dual motor"
+msgstr ""
+
+#: app/main.py:92
+msgid "Dual Motor AWD badging"
+msgstr ""
+
+#: app/main.py:93
+msgid "Dual motor all-wheel drive"
+msgstr ""
+
+#: app/main.py:94
+msgid "Performance Upgrade Package"
+msgstr ""
+
+#: app/main.py:95
+msgid "Model year 2022 Q2 build"
+msgstr ""
+
+#: app/main.py:96
+msgid "Model year 2023 Q4 build"
+msgstr ""
+
+#: app/main.py:97
+msgid "Model Y Long Range AWD"
+msgstr ""
+
+#: app/main.py:98
+msgid "Towing package deleted"
+msgstr ""
+
+#: app/main.py:99
+msgid "Factory tow package"
+msgstr ""
+
+#: app/main.py:101
+msgid "Long Range battery pack"
+msgstr ""
+
+#: app/main.py:102
+msgid "Standard Range battery pack"
+msgstr ""
+
+#: app/main.py:103
+msgid "4680 structural battery pack"
+msgstr ""
+
+#: app/main.py:104
+msgid "No Ludicrous upgrade"
+msgstr ""
+
+#: app/main.py:106
+msgid "Pearl White Multi-Coat paint"
+msgstr ""
+
+#: app/main.py:107
+msgid "Red Multi-Coat paint"
+msgstr ""
+
+#: app/main.py:108
+msgid "Midnight Silver Metallic paint"
+msgstr ""
+
+#: app/main.py:109
+msgid "Deep Blue Metallic paint"
+msgstr ""
+
+#: app/main.py:110
+msgid "Obsidian Black Metallic paint"
+msgstr ""
+
+#: app/main.py:111
+msgid "Titanium Metallic paint"
+msgstr ""
+
+#: app/main.py:112
+msgid "Solid Black paint"
+msgstr ""
+
+#: app/main.py:113
+msgid "Marine Blue"
+msgstr ""
+
+#: app/main.py:115 app/main.py:117
+msgid "19\" Sport Wheels"
+msgstr ""
+
+#: app/main.py:116
+msgid "18\" Aero Wheels"
+msgstr ""
+
+#: app/main.py:118
+msgid "20\" Induction Wheels"
+msgstr ""
+
+#: app/main.py:119
+msgid "20\" Gemini Wheels"
+msgstr ""
+
+#: app/main.py:120
+msgid "21\" Überturbine Wheels"
+msgstr ""
+
+#: app/main.py:121
+msgid "19\" Crossflow Wheels"
+msgstr ""
+
+#: app/main.py:122
+msgid "All-season tires"
+msgstr ""
+
+#: app/main.py:123
+msgid "Coil suspension setup"
+msgstr ""
+
+#: app/main.py:125 app/main.py:129
+msgid "Premium all-black interior"
+msgstr ""
+
+#: app/main.py:126
+msgid "Premium black & white interior"
+msgstr ""
+
+#: app/main.py:127
+msgid "Model Y black interior"
+msgstr ""
+
+#: app/main.py:128
+msgid "Model Y black & white interior"
+msgstr ""
+
+#: app/main.py:130
+msgid "Interior ambient lighting"
+msgstr ""
+
+#: app/main.py:131
+msgid "Premium audio system"
+msgstr ""
+
+#: app/main.py:132
+msgid "Subzero weather / heated components"
+msgstr ""
+
+#: app/main.py:134
+msgid "Front heated seats"
+msgstr ""
+
+#: app/main.py:135
+msgid "Rear heated seats"
+msgstr ""
+
+#: app/main.py:136
+msgid "Second row seat heaters"
+msgstr ""
+
+#: app/main.py:137
+msgid "MY 5 Seat Interior"
+msgstr ""
+
+#: app/main.py:139
+msgid "Basic Autopilot"
+msgstr ""
+
+#: app/main.py:140
+msgid "Autopilot hardware with no features"
+msgstr ""
+
+#: app/main.py:141
+msgid "Autopilot convenience features"
+msgstr ""
+
+#: app/main.py:142
+msgid "Enhanced Autopilot"
+msgstr ""
+
+#: app/main.py:143
+msgid "Full Self-Driving computer (HW3)"
+msgstr ""
+
+#: app/main.py:144
+msgid "Full Self-Driving capability"
+msgstr ""
+
+#: app/main.py:145
+msgid "Premium connectivity"
+msgstr ""
+
+#: app/main.py:146
+msgid "Premium connectivity (trial)"
+msgstr ""
+
+#: app/main.py:149
+msgid "Premium connectivity (1 year included)"
+msgstr ""
+
+#: app/main.py:151
+msgid "Pay-as-you-go Supercharging"
+msgstr ""
+
+#: app/main.py:152
+msgid "Free unlimited Supercharging"
+msgstr ""
+
+#: app/main.py:154
+msgid "HEPA filter & Bioweapon Defense Mode"
+msgstr ""
+
+#: app/main.py:155
+msgid "Power folding, heated side mirrors"
+msgstr ""
+
+#: app/main.py:156
+msgid "Matrix LED headlights"
+msgstr ""
+
+#: app/main.py:157
+msgid "Premium audio amplifier"
+msgstr ""
+
+#: app/main.py:158
+msgid "Left-hand drive configuration"
+msgstr ""
+
+#: app/main.py:159
+msgid "Right-hand drive configuration"
+msgstr ""
+
+#: app/main.py:160
+msgid "Factory paint protection film"
+msgstr ""
+
+#: app/main.py:161
+msgid "Performance red brake calipers"
+msgstr ""
+
+#: app/main.py:165
+msgid "Exterior paint option"
+msgstr ""
+
+#: app/main.py:166
+msgid "Wheel package"
+msgstr ""
+
+#: app/main.py:167
+msgid "Interior trim or material"
+msgstr ""
+
+#: app/main.py:168
+msgid "Autopilot or software package"
+msgstr ""
+
+#: app/main.py:169
+msgid "Supercharging config"
+msgstr ""
+
+#: app/main.py:170
+msgid "Model designation"
+msgstr ""
+
+#: app/main.py:171
+msgid "Battery configuration"
+msgstr ""
+
+#: app/main.py:172
+msgid "Seat or interior comfort"
+msgstr ""
+
+#: app/main.py:173
+msgid "Drive-unit or performance upgrade"
+msgstr ""
+
+#: app/main.py:174
+msgid "Equipment package"
+msgstr ""
+
+#: app/main.py:175
+msgid "Hardware feature"
+msgstr ""
+
+#: app/main.py:179
+msgid "Pickup at service/delivery center"
+msgstr ""
+
+#: app/main.py:180
+msgid "Home delivery"
+msgstr ""
+
+#: app/main.py:181
+msgid "Express pickup"
+msgstr ""
+
+#: app/main.py:182
+msgid "Delivery center appointment"
+msgstr ""
+
+#: app/main.py:183
+msgid "Retail store pickup"
+msgstr ""
+
+#: app/main.py:184
+msgid "Direct-to-customer handoff"
+msgstr ""
+
+#: app/main.py:188
+msgid "Final payment required"
+msgstr ""
+
+#: app/main.py:189
+msgid "Payment received"
+msgstr ""
+
+#: app/main.py:190
+msgid "Funds in transit"
+msgstr ""
+
+#: app/main.py:191
+msgid "Payment scheduled"
+msgstr ""
+
+#: app/main.py:192
+msgid "Payment pending"
+msgstr ""
+
+#: app/main.py:193
+msgid "No payment required"
+msgstr ""
+
+#: app/main.py:194
+msgid "Payment under verification"
+msgstr ""
+
+#: app/main.py:198
+msgid "Not scheduled"
+msgstr ""
+
+#: app/main.py:199
+msgid "Appointment scheduled"
+msgstr ""
+
+#: app/main.py:200
+msgid "Appointment confirmed"
+msgstr ""
+
+#: app/main.py:201
+msgid "Appointment rescheduled"
+msgstr ""
+
+#: app/main.py:202
+msgid "Waiting for customer to schedule"
+msgstr ""
+
+#: app/main.py:203
+msgid "Tesla scheduling in progress"
+msgstr ""
+
+#: app/main.py:204
+msgid "Appointment completed"
+msgstr ""
+
+#: app/main.py:205
+msgid "Appointment cancelled"
+msgstr ""
+
+#: app/main.py:209
+msgid "Registration not started"
+msgstr ""
+
+#: app/main.py:210
+msgid "Registration in progress"
+msgstr ""
+
+#: app/main.py:211
+msgid "Registration submitted"
+msgstr ""
+
+#: app/main.py:212
+msgid "Registration approved"
+msgstr ""
+
+#: app/main.py:213
+msgid "Registration completed"
+msgstr ""
+
+#: app/main.py:214
+msgid "Registration pending review"
+msgstr ""
+
+#: app/main.py:218
+msgid "Individual registrant"
+msgstr ""
+
+#: app/main.py:219
+msgid "Business registrant"
+msgstr ""
+
+#: app/main.py:220
+msgid "Leased vehicle"
+msgstr ""
+
+#: app/main.py:221
+msgid "Company-owned"
+msgstr ""
+
+#: app/main.py:222
+msgid "Government fleet"
+msgstr ""
+
+#: app/main.py:226
+msgid "English (United States)"
+msgstr ""
+
+#: app/main.py:227
+msgid "English (Canada)"
+msgstr ""
+
+#: app/main.py:228
+msgid "English (United Kingdom)"
+msgstr ""
+
+#: app/main.py:229
+msgid "French (France)"
+msgstr ""
+
+#: app/main.py:230
+msgid "French (Canada)"
+msgstr ""
+
+#: app/main.py:231
+msgid "German (Germany)"
+msgstr ""
+
+#: app/main.py:232
+msgid "Dutch (Netherlands)"
+msgstr ""
+
+#: app/main.py:233
+msgid "Spanish (Spain)"
+msgstr ""
+
+#: app/main.py:234
+msgid "Spanish (Mexico)"
+msgstr ""
+
+#: app/main.py:235
+msgid "Swedish (Sweden)"
+msgstr ""
+
+#: app/main.py:239
+msgid "Order placed"
+msgstr ""
+
+#: app/main.py:240
+msgid "Order confirmed"
+msgstr ""
+
+#: app/main.py:241
+msgid "Vehicle in production"
+msgstr ""
+
+#: app/main.py:242
+msgid "Vehicle built"
+msgstr ""
+
+#: app/main.py:243
+msgid "Vehicle in transit"
+msgstr ""
+
+#: app/main.py:244
+msgid "Vehicle delivered"
+msgstr ""
+
+#: app/main.py:245
+msgid "Order cancelled"
+msgstr ""
+
+#: app/main.py:246
+msgid "Order on hold"
+msgstr ""
+
+#: app/main.py:250
+msgid "Awaiting factory allocation"
+msgstr ""
+
+#: app/main.py:251
+msgid "VIN assigned"
+msgstr ""
+
+#: app/main.py:252
+msgid "Ready for delivery"
+msgstr ""
+
+#: app/main.py:253
+msgid "Awaiting payment"
+msgstr ""
+
+#: app/main.py:254
+msgid "Paperwork pending"
+msgstr ""
+
+#: app/main.py:258
+msgid "Retail loan"
+msgstr ""
+
+#: app/main.py:259
+msgid "Lease"
+msgstr ""
+
+#: app/main.py:260
+msgid "Cash purchase"
+msgstr ""
+
+#: app/main.py:261
+msgid "Balloon financing"
+msgstr ""
+
+#: app/main.py:262
+msgid "Tesla financing"
+msgstr ""
+
+#: app/main.py:266
+msgid "Before-delivery readiness"
+msgstr ""
+
+#: app/main.py:267
+msgid "Delivery-day handoff"
+msgstr ""
+
+#: app/main.py:268
+msgid "Post-delivery follow-up"
+msgstr ""
+
+#: app/main.py:269
+msgid "Finance clearance before delivery"
+msgstr ""
+
+#: app/main.py:270
+msgid "Paperwork before delivery"
+msgstr ""
+
+#: app/main.py:271
+msgid "Vehicle prep before delivery"
+msgstr ""
+
+#: app/main.py:275
+msgid "Tesla"
+msgstr ""
+
+#: app/main.py:276
+msgid "Customer"
+msgstr ""
+
+#: app/main.py:280
+msgid "Before delivery"
+msgstr ""
+
+#: app/main.py:281
+msgid "During delivery"
+msgstr ""
+
+#: app/main.py:282
+msgid "After delivery"
+msgstr ""
+
+#: app/main.py:283
+msgid "Post-delivery"
+msgstr ""
+
+#: app/main.py:284
+msgid "Prior to appointment"
+msgstr ""
+
+#: app/main.py:384
+msgid "ETA to Delivery Center"
+msgstr ""
+
+#: app/main.py:388 app/main.py:761
+msgid "Delivery Type"
+msgstr ""
+
+#: app/main.py:397
+msgid "Pickup Address"
+msgstr ""
+
+#: app/main.py:403 app/main.py:707
+msgid "Payment Status"
+msgstr ""
+
+#: app/main.py:413 app/main.py:735
+msgid "Customer Amount Due"
+msgstr ""
+
+#: app/main.py:423 app/main.py:814
+msgid "Order Placed"
+msgstr ""
+
+#: app/main.py:424 app/main.py:818
+msgid "Order Booked"
+msgstr ""
+
+#: app/main.py:441 app/main.py:636
+msgid "N/A"
+msgstr ""
+
+#: app/main.py:443
+msgid "unknown"
+msgstr ""
+
+#: app/main.py:445
+msgid "Not Scheduled"
+msgstr ""
+
+#: app/main.py:447
+msgid "TBD"
+msgstr ""
+
+#: app/main.py:451 app/main.py:658 app/main.py:663
+msgid "Unknown"
+msgstr ""
+
+#: app/main.py:493
+msgid "Yes"
+msgstr ""
+
+#: app/main.py:493
+msgid "No"
+msgstr ""
+
+#: app/main.py:549
+msgid "name"
+msgstr ""
+
+#: app/main.py:627 app/main.py:631
+msgid "Option"
+msgstr ""
+
+#: app/main.py:627
+msgid "Unrecognized option"
+msgstr ""
+
+#: app/main.py:631
+msgid "Custom configuration"
+msgstr ""
+
+#: app/main.py:701
+msgid "months"
+msgstr ""
+
+#: app/main.py:710
+msgid "Finance Partner"
+msgstr ""
+
+#: app/main.py:712
+msgid "Product Type"
+msgstr ""
+
+#: app/main.py:720
+msgid "Interest Rate"
+msgstr ""
+
+#: app/main.py:722
+msgid "Monthly Payment"
+msgstr ""
+
+#: app/main.py:727
+msgid "Term"
+msgstr ""
+
+#: app/main.py:729
+msgid "Down Payment"
+msgstr ""
+
+#: app/main.py:739
+msgid "Amount Sent"
+msgstr ""
+
+#: app/main.py:743
+msgid "Lender Amount Due"
+msgstr ""
+
+#: app/main.py:770
+msgid "Pickup Location"
+msgstr ""
+
+#: app/main.py:775
+msgid "Ready To Accept"
+msgstr ""
+
+#: app/main.py:776
+msgid "Self-Scheduling"
+msgstr ""
+
+#: app/main.py:778
+msgid "Appointment Status"
+msgstr ""
+
+#: app/main.py:785
+msgid "Tesla Actions Pending"
+msgstr ""
+
+#: app/main.py:786
+msgid "Customer Actions Pending"
+msgstr ""
+
+#: app/main.py:787
+msgid "Has Blocker"
+msgstr ""
+
+#: app/main.py:796
+msgid "Registration Status"
+msgstr ""
+
+#: app/main.py:805
+msgid "Registrant Type"
+msgstr ""
+
+#: app/main.py:822
+msgid "Primary Registrant"
+msgstr ""
+
+#: app/main.py:827
+msgid "Country"
+msgstr ""
+
+#: app/main.py:831
+msgid "Delivery Alerts"
+msgstr ""
+
+#: app/main.py:841
+msgid "Order Status"
+msgstr ""
+
+#: app/main.py:845
+msgid "Order Substatus"
+msgstr ""
+
+#: app/main.py:848
+msgid "Vehicle Map ID"
+msgstr ""
+
+#: app/main.py:849
+msgid "Locale"
+msgstr ""
+
+#: app/main.py:850
+msgid "B2B Order"
+msgstr ""
+
+#: app/main.py:851
+msgid "Used Vehicle"
+msgstr ""
+
+#: app/templates/base.html:6 app/templates/base.html:59
+msgid "Tesla Order Status"
+msgstr ""
+
+#: app/templates/base.html:36
+msgid "Tesla Status"
+msgstr ""
+
+#: app/templates/base.html:39
+msgid "Dashboard"
+msgstr ""
+
+#: app/templates/base.html:40
+msgid "History"
+msgstr ""
+
+#: app/templates/base.html:41
+msgid "Refresh"
+msgstr ""
+
+#: app/templates/base.html:42
+msgid "Logout"
+msgstr ""
+
+#: app/templates/callback_success.html:5
+msgid "Setting up your secure session…"
+msgstr ""
+
+#: app/templates/callback_success.html:6
+msgid ""
+"We are saving your Tesla tokens locally so only your browser can reuse "
+"them. This page will redirect once everything is ready."
+msgstr ""
+
+#: app/templates/callback_success.html:7
+msgid "Please keep this tab open."
+msgstr ""
+
+#: app/templates/callback_success.html:24
+msgid ""
+"Something went wrong while saving your session. Please try logging in "
+"again."
+msgstr ""
+
+#: app/templates/history.html:28
+msgid "Order History"
+msgstr ""
+
+#: app/templates/history.html:29
+msgid "Snapshots are stored locally in your browser whenever the dashboard loads."
+msgstr ""
+
+#: app/templates/history.html:33
+msgid "Clear History"
+msgstr ""
+
+#: app/templates/history.html:38
+msgid "No history yet. Visit the dashboard to capture your first snapshot."
+msgstr ""
+
+#: app/templates/history.html:71
+msgid "Status"
+msgstr ""
+
+#: app/templates/history.html:72 app/templates/index.html:79
+msgid "Delivery Window"
+msgstr ""
+
+#: app/templates/history.html:73
+msgid "Delivery Date"
+msgstr ""
+
+#: app/templates/history.html:74
+msgid "Delivery Location"
+msgstr ""
+
+#: app/templates/history.html:75 app/templates/index.html:63
+msgid "VIN"
+msgstr ""
+
+#: app/templates/history.html:76
+msgid "ETA to Center"
+msgstr ""
+
+#: app/templates/index.html:13
+msgid "Latest order data loaded successfully."
+msgstr ""
+
+#: app/templates/index.html:42
+msgid "Vehicle preview unavailable"
+msgstr ""
+
+#: app/templates/index.html:69
+msgid "Decode"
+msgstr ""
+
+#: app/templates/index.html:75
+msgid "Location"
+msgstr ""
+
+#: app/templates/index.html:83
+msgid "Appointment"
+msgstr ""
+
+#: app/templates/index.html:106
+msgid "Manufacturer"
+msgstr ""
+
+#: app/templates/index.html:110
+msgid "Model Year"
+msgstr ""
+
+#: app/templates/index.html:114
+msgid "Model"
+msgstr ""
+
+#: app/templates/index.html:118
+msgid "Body Type"
+msgstr ""
+
+#: app/templates/index.html:122
+msgid "Battery Type"
+msgstr ""
+
+#: app/templates/index.html:126
+msgid "Motor / Drive Unit"
+msgstr ""
+
+#: app/templates/index.html:130
+msgid "Restraint System"
+msgstr ""
+
+#: app/templates/index.html:134
+msgid "Factory"
+msgstr ""
+
+#: app/templates/index.html:138
+msgid "Serial Number"
+msgstr ""
+
+#: app/templates/index.html:156
+msgid "Order Tasks"
+msgstr ""
+
+#: app/templates/index.html:157
+msgid "step"
+msgstr ""
+
+#: app/templates/index.html:157
+msgid "steps"
+msgstr ""
+
+#: app/templates/index.html:157
+msgid "tracked from Tesla's delivery checklist."
+msgstr ""
+
+#: app/templates/index.html:161
+msgid "Done"
+msgstr ""
+
+#: app/templates/index.html:165
+msgid "Action needed"
+msgstr ""
+
+#: app/templates/index.html:169 app/templates/index.html:191
+msgid "Waiting on Tesla"
+msgstr ""
+
+#: app/templates/index.html:173
+msgid "Other"
+msgstr ""
+
+#: app/templates/index.html:182
+msgid "Info only"
+msgstr ""
+
+#: app/templates/index.html:185
+msgid "Complete"
+msgstr ""
+
+#: app/templates/index.html:188
+msgid "Action required"
+msgstr ""
+
+#: app/templates/index.html:240
+msgid "No tasks surfaced for this order."
+msgstr ""
+
+#: app/templates/index.html:247
+msgid "Delivery Logistics"
+msgstr ""
+
+#: app/templates/index.html:248
+msgid "Appointments, pickup routing, and readiness gates from Tesla tasks."
+msgstr ""
+
+#: app/templates/index.html:250
+msgid "No delivery metadata available."
+msgstr ""
+
+#: app/templates/index.html:256
+msgid "Registration & Order"
+msgstr ""
+
+#: app/templates/index.html:257
+msgid "Paperwork milestones and regional routing pulled from Tesla."
+msgstr ""
+
+#: app/templates/index.html:259
+msgid "No registration data surfaced."
+msgstr ""
+
+#: app/templates/index.html:269
+msgid "Finance Snapshot"
+msgstr ""
+
+#: app/templates/index.html:270
+msgid "Down payments, lender status, and Tesla billing metadata."
+msgstr ""
+
+#: app/templates/index.html:272
+msgid "No finance data available."
+msgstr ""
+
+#: app/templates/index.html:278
+msgid "Order Metadata & Options"
+msgstr ""
+
+#: app/templates/index.html:279
+msgid "Internal statuses plus decoded market option codes."
+msgstr ""
+
+#: app/templates/index.html:281
+msgid "No metadata available."
+msgstr ""
+
+#: app/templates/index.html:289
+msgid "Active Delivery Blockers"
+msgstr ""
+
+#: app/templates/index.html:294
+msgid "Owner"
+msgstr ""
+
+#: app/templates/index.html:294
+msgid "When"
+msgstr ""
+
+#: app/templates/index.html:302
+msgid "View Raw Tesla Payload"
+msgstr ""
+
+#: app/templates/index.html:313
+msgid "No Orders Found"
+msgstr ""
+
+#: app/templates/index.html:314
+msgid ""
+"We couldn't find any active orders associated with your account. Try "
+"refreshing below or verify your Tesla credentials."
+msgstr ""
+
+#: app/templates/index.html:316
+msgid "Refresh Orders"
+msgstr ""
+
+#: app/templates/index.html:317
+msgid "Update Settings"
+msgstr ""
+
+#: app/templates/login.html:5
+msgid "Tesla Authentication"
+msgstr ""
+
+#: app/templates/login.html:9
+msgid "Step 1: Open the Tesla Login page"
+msgstr ""
+
+#: app/templates/login.html:11
+msgid "Open Tesla Login"
+msgstr ""
+
+#: app/templates/login.html:16
+msgid "Step 2: Paste the redirected URL here"
+msgstr ""
+
+#: app/templates/login.html:21
+msgid "Complete Login"
+msgstr ""
+
+#: app/templates/login.html:27
+msgid ""
+"Note: You will see a \"Page Not Found\" error on the Tesla page. This is "
+"normal. Copy the URL from your browser's address bar."
+msgstr ""
+
+#: app/templates/login.html:31
+msgid ""
+"Tokens are stored only inside this browser (IndexedDB + a service "
+"worker). Use the Logout link or clear site data if you want to remove "
+"them."
+msgstr ""
+
+#: app/templates/login.html:35
+msgid "Tracking a Different Order?"
+msgstr ""
+
+#: app/templates/login.html:37
+msgid ""
+"This application tracks orders for the currently logged-in Tesla account."
+" To track an order for a different user:"
+msgstr ""
+
+#: app/templates/login.html:40
+msgid "Log out of your Tesla account in your browser (or use Incognito mode)."
+msgstr ""
+
+#: app/templates/login.html:41
+msgid "Click \"Open Tesla Login\" above."
+msgstr ""
+
+#: app/templates/login.html:42
+msgid "Sign in with the new account credentials."
+msgstr ""
+
+#: app/templates/login.html:43
+msgid "Paste the new callback URL here."
+msgstr ""
+
+#: app/templates/login.html:46
+msgid ""
+"Note: Logging in with a new account will overwrite the existing session "
+"tokens."
+msgstr ""
+
+#: app/templates/logout.html:5
+msgid "Signing you out…"
+msgstr ""
+
+#: app/templates/logout.html:6
+msgid ""
+"All locally stored Tesla credentials will be deleted. You will be "
+"redirected to the login page when the process is complete."
+msgstr ""
+

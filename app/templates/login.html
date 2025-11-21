@@ -2,49 +2,48 @@
 
 {% block content %}
 <div class="max-w-md mx-auto bg-zinc-800 rounded-lg p-8 shadow-lg border border-zinc-700 mt-10">
-    <h1 class="text-2xl font-bold mb-6 text-center">Tesla Authentication</h1>
+    <h1 class="text-2xl font-bold mb-6 text-center">{{ _('Tesla Authentication') }}</h1>
     
     <div class="space-y-6">
         <div>
-            <p class="mb-2 text-zinc-300">Step 1: Open the Tesla Login page</p>
+            <p class="mb-2 text-zinc-300">{{ _('Step 1: Open the Tesla Login page') }}</p>
             <a href="{{ auth_url }}" target="_blank" class="block w-full bg-blue-600 hover:bg-blue-700 text-white text-center py-2 rounded transition">
-                Open Tesla Login
+                {{ _('Open Tesla Login') }}
             </a>
         </div>
 
         <div>
-            <p class="mb-2 text-zinc-300">Step 2: Paste the redirected URL here</p>
+            <p class="mb-2 text-zinc-300">{{ _('Step 2: Paste the redirected URL here') }}</p>
             <form action="/callback" method="post" class="space-y-4">
                 <input type="text" name="url" placeholder="https://auth.tesla.com/void/callback?code=..." 
                     class="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-white focus:border-tesla-red focus:outline-none">
                 <button type="submit" class="block w-full bg-tesla-red hover:bg-red-700 text-white py-2 rounded transition">
-                    Complete Login
+                    {{ _('Complete Login') }}
                 </button>
             </form>
         </div>
         
         <div class="text-xs text-zinc-500 mt-4">
-            Note: You will see a "Page Not Found" error on the Tesla page. This is normal. Copy the URL from your browser's address bar.
+            {{ _('Note: You will see a "Page Not Found" error on the Tesla page. This is normal. Copy the URL from your browser\'s address bar.') }}
         </div>
 
         <div class="text-xs text-zinc-500 mt-2">
-            Tokens are stored only inside this browser (IndexedDB + a service worker). Use the Logout link or clear site data if you want to remove them.
+            {{ _('Tokens are stored only inside this browser (IndexedDB + a service worker). Use the Logout link or clear site data if you want to remove them.') }}
         </div>
 
         <div class="mt-8 pt-6 border-t border-zinc-700">
-            <h3 class="text-lg font-bold mb-2 text-white">Tracking a Different Order?</h3>
+            <h3 class="text-lg font-bold mb-2 text-white">{{ _('Tracking a Different Order?') }}</h3>
             <p class="text-zinc-400 text-sm mb-4">
-                This application tracks orders for the currently logged-in Tesla account. 
-                To track an order for a different user:
+                {{ _('This application tracks orders for the currently logged-in Tesla account. To track an order for a different user:') }}
             </p>
             <ol class="list-decimal list-inside text-zinc-400 text-sm space-y-2">
-                <li>Log out of your Tesla account in your browser (or use Incognito mode).</li>
-                <li>Click "Open Tesla Login" above.</li>
-                <li>Sign in with the new account credentials.</li>
-                <li>Paste the new callback URL here.</li>
+                <li>{{ _('Log out of your Tesla account in your browser (or use Incognito mode).') }}</li>
+                <li>{{ _('Click "Open Tesla Login" above.') }}</li>
+                <li>{{ _('Sign in with the new account credentials.') }}</li>
+                <li>{{ _('Paste the new callback URL here.') }}</li>
             </ol>
             <p class="text-zinc-500 text-xs mt-2 italic">
-                Note: Logging in with a new account will overwrite the existing session tokens.
+                {{ _('Note: Logging in with a new account will overwrite the existing session tokens.') }}
             </p>
         </div>
     </div>

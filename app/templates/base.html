@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="{{ locale }}" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tesla Order Status</title>
+    <title>{{ _('Tesla Order Status') }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -33,13 +33,20 @@
         <div class="max-w-7xl mx-auto w-full flex justify-between items-center px-2">
             <a href="/" class="text-2xl font-bold text-white flex items-center gap-2">
                 <svg class="w-8 h-8 text-tesla-red" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-                Tesla Status
+                {{ _('Tesla Status') }}
             </a>
-            <div class="flex gap-4">
-                <a href="/" class="hover:text-tesla-red transition">Dashboard</a>
-                <a href="/history" class="hover:text-tesla-red transition">History</a>
-                <a href="/refresh" class="bg-tesla-red hover:bg-red-700 text-white px-4 py-1 rounded transition">Refresh</a>
-                <a href="/logout" class="hover:text-tesla-red transition">Logout</a>
+            <div class="flex gap-4 items-center">
+                <a href="/" class="hover:text-tesla-red transition">{{ _('Dashboard') }}</a>
+                <a href="/history" class="hover:text-tesla-red transition">{{ _('History') }}</a>
+                <a href="/refresh" class="bg-tesla-red hover:bg-red-700 text-white px-4 py-1 rounded transition">{{ _('Refresh') }}</a>
+                <a href="/logout" class="hover:text-tesla-red transition">{{ _('Logout') }}</a>
+                
+                <div class="border-l border-zinc-700 h-6 mx-2"></div>
+                
+                <div class="flex gap-2 text-sm font-medium">
+                    <a href="/set-language?lang=en&next_url={{ request.url.path }}" class="{{ 'text-tesla-red' if locale == 'en' else 'text-zinc-400 hover:text-white' }} transition">EN</a>
+                    <a href="/set-language?lang=nl&next_url={{ request.url.path }}" class="{{ 'text-tesla-red' if locale == 'nl' else 'text-zinc-400 hover:text-white' }} transition">NL</a>
+                </div>
             </div>
         </div>
     </nav>
@@ -49,7 +56,7 @@
     </main>
 
     <footer class="bg-zinc-900 border-t border-zinc-800 p-4 text-center text-zinc-500 text-sm">
-        &copy; 2025 Tesla Order Status
+        &copy; 2025 {{ _('Tesla Order Status') }}
     </footer>
     <script type="module" src="/static/js/app-init.js"></script>
     {% block extra_scripts %}{% endblock %}

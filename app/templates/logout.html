@@ -2,8 +2,8 @@
 
 {% block content %}
 <div class="max-w-lg mx-auto text-center space-y-4">
-    <h1 class="text-2xl font-semibold">Signing you out…</h1>
-    <p class="text-zinc-400">All locally stored Tesla credentials will be deleted. You will be redirected to the login page when the process is complete.</p>
+    <h1 class="text-2xl font-semibold">{{ _('Signing you out…') }}</h1>
+    <p class="text-zinc-400">{{ _('All locally stored Tesla credentials will be deleted. You will be redirected to the login page when the process is complete.') }}</p>
 </div>
 <script type="module">
 import { clearBundle } from '/static/js/token-storage.js';

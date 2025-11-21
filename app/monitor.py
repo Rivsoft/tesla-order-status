@@ -33,6 +33,20 @@ class TeslaOrderMonitor:
             self.code_verifier,
             self.code_challenge,
         ) = self.generate_code_verifier_and_challenge()
+        self._cache: Dict[str, Tuple[float, Any]] = {}
+        self.CACHE_TTL = 300  # 5 minutes
+
+    def _get_cached(self, key: str) -> Optional[Any]:
+        if key in self._cache:
+            timestamp, data = self._cache[key]
+            if time.time() - timestamp < self.CACHE_TTL:
+                return data
+            else:
+                del self._cache[key]
+        return None
+
+    def _set_cache(self, key: str, data: Any):
+        self._cache[key] = (time.time(), data)
 
     def generate_code_verifier_and_challenge(self) -> Tuple[str, str]:
         code_verifier = (
@@ -97,14 +111,32 @@ class TeslaOrderMonitor:
         response.raise_for_status()
         return response.json()
 
-    def retrieve_orders(self, access_token: str) -> List[Dict[str, Any]]:
+    def retrieve_orders(
+        self, access_token: str, force_refresh: bool = False
+    ) -> List[Dict[str, Any]]:
+        cache_key = f"orders:{access_token}"
+        if not force_refresh:
+            cached = self._get_cached(cache_key)
+            if cached:
+                return cached
+
         headers = {"Authorization": f"Bearer {access_token}"}
         api_url = "https://owner-api.teslamotors.com/api/1/users/orders"
         response = requests.get(api_url, headers=headers)
         response.raise_for_status()
-        return response.json()["response"]
+        data = response.json()["response"]
+        self._set_cache(cache_key, data)
+        return data
 
-    def get_order_details(self, order_id: str, access_token: str) -> Dict[str, Any]:
+    def get_order_details(
+        self, order_id: str, access_token: str, force_refresh: bool = False
+    ) -> Dict[str, Any]:
+        cache_key = f"details:{order_id}:{access_token}"
+        if not force_refresh:
+            cached = self._get_cached(cache_key)
+            if cached:
+                return cached
+
         headers = {"Authorization": f"Bearer {access_token}"}
         api_url = "https://akamai-apigateway-vfx.tesla.com/tasks"
         query_params = {
@@ -115,7 +147,9 @@ class TeslaOrderMonitor:
         }
         response = requests.get(api_url, headers=headers, params=query_params)
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+        self._set_cache(cache_key, data)
+        return data
 
     def compare_dicts(
         self, old_dict: Dict[str, Any], new_dict: Dict[str, Any], path: str = ""

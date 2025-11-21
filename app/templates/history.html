@@ -25,17 +25,17 @@
 <div class="max-w-5xl mx-auto space-y-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <h1 class="text-3xl font-bold">Order History</h1>
-            <p class="text-zinc-400 text-sm">Snapshots are stored locally in your browser whenever the dashboard loads.</p>
+            <h1 class="text-3xl font-bold">{{ _('Order History') }}</h1>
+            <p class="text-zinc-400 text-sm">{{ _('Snapshots are stored locally in your browser whenever the dashboard loads.') }}</p>
         </div>
         <button id="clear-history"
                 class="self-start sm:self-auto bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-            Clear History
+            {{ _('Clear History') }}
         </button>
     </div>
 
     <div id="history-empty" class="bg-zinc-900/60 border border-zinc-800 rounded-xl p-8 text-center text-zinc-400">
-        No history yet. Visit the dashboard to capture your first snapshot.
+        {{ _('No history yet. Visit the dashboard to capture your first snapshot.') }}
     </div>
 
     <div id="history-list" class="space-y-6"></div>
@@ -68,12 +68,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const FIELD_LABELS = {
-        status: 'Status',
-        delivery_window: 'Delivery Window',
-        delivery_date: 'Delivery Date',
-        location: 'Delivery Location',
-        vin: 'VIN',
-        eta: 'ETA to Center'
+        status: '{{ _("Status") }}',
+        delivery_window: '{{ _("Delivery Window") }}',
+        delivery_date: '{{ _("Delivery Date") }}',
+        location: '{{ _("Delivery Location") }}',
+        vin: '{{ _("VIN") }}',
+        eta: '{{ _("ETA to Center") }}'
     };
 
     const flattenObject = (value, prefix = '', acc = {}, depth = 0) => {

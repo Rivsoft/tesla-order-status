@@ -8,7 +8,7 @@ import re
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, Callable, Dict, List, Optional, TypeVar
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
@@ -18,6 +18,31 @@ from fastapi.templating import Jinja2Templates
 from .metrics import build_metrics_from_env
 from .monitor import TeslaOrderMonitor
 from .vin_decoder import VinDecoder
+from .i18n import i18n, LANG_COOKIE_NAME
+
+# Dummy translation function for extraction
+def _(s: str) -> str:
+    return s
+
+# Mapping of category names to their translated labels
+CATEGORY_LABELS = {
+    "Vehicle": _("Vehicle Options"),
+    "Drive": _("Drive Options"),
+    "Performance": _("Performance Options"),
+    "Manufacturing": _("Manufacturing Options"),
+    "Towing": _("Towing Options"),
+    "Battery": _("Battery Options"),
+    "Paint": _("Paint Options"),
+    "Wheels": _("Wheels Options"),
+    "Suspension": _("Suspension Options"),
+    "Interior": _("Interior Options"),
+    "Seating": _("Seating Options"),
+    "Software": _("Software Options"),
+    "Connectivity": _("Connectivity Options"),
+    "Charging": _("Charging Options"),
+    "Hardware": _("Hardware Options"),
+    "Protection": _("Protection Options"),
+}
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -57,202 +82,209 @@ async def flush_visit_metrics() -> None:
 
 MARKET_OPTION_CATALOG: Dict[str, Dict[str, str]] = {
     # Vehicle / drive / manufacturing
-    "MDL3": {"category": "Vehicle", "name": "Model 3 platform"},
-    "MDLY": {"category": "Vehicle", "name": "Model Y platform"},
-    "MDLS": {"category": "Vehicle", "name": "Model S platform"},
-    "MDLX": {"category": "Vehicle", "name": "Model X platform"},
-    "ADPX0": {"category": "Drive", "name": "Rear-wheel drive single motor"},
-    "ADPX1": {"category": "Drive", "name": "Long Range dual motor"},
-    "ADPX2": {"category": "Drive", "name": "Performance dual motor"},
-    "DUALMOTOR": {"category": "Drive", "name": "Dual Motor AWD badging"},
-    "DV4W": {"category": "Drive", "name": "Dual motor all-wheel drive"},
-    "P3WS": {"category": "Performance", "name": "Performance Upgrade Package"},
-    "MT322": {"category": "Manufacturing", "name": "Model year 2022 Q2 build"},
-    "MT337": {"category": "Manufacturing", "name": "Model year 2023 Q4 build"},
-    "MTY62": {"category": "Manufacturing", "name": "Model Y Long Range AWD"},
-    "TM00": {"category": "Towing", "name": "Towing package deleted"},
-    "TOW1": {"category": "Towing", "name": "Factory tow package"},
+    "MDL3": {"category": "Vehicle", "name": _("Model 3 platform")},
+    "MDLY": {"category": "Vehicle", "name": _("Model Y platform")},
+    "MDLS": {"category": "Vehicle", "name": _("Model S platform")},
+    "MDLX": {"category": "Vehicle", "name": _("Model X platform")},
+    "ADPX0": {"category": "Drive", "name": _("Rear-wheel drive single motor")},
+    "ADPX1": {"category": "Drive", "name": _("Long Range dual motor")},
+    "ADPX2": {"category": "Drive", "name": _("Performance dual motor")},
+    "DUALMOTOR": {"category": "Drive", "name": _("Dual Motor AWD badging")},
+    "DV4W": {"category": "Drive", "name": _("Dual motor all-wheel drive")},
+    "P3WS": {"category": "Performance", "name": _("Performance Upgrade Package")},
+    "MT322": {"category": "Manufacturing", "name": _("Model year 2022 Q2 build")},
+    "MT337": {"category": "Manufacturing", "name": _("Model year 2023 Q4 build")},
+    "MTY62": {"category": "Manufacturing", "name": _("Model Y Long Range AWD")},
+    "TM00": {"category": "Towing", "name": _("Towing package deleted")},
+    "TOW1": {"category": "Towing", "name": _("Factory tow package")},
     # Batteries / powertrain
-    "BT37": {"category": "Battery", "name": "Long Range battery pack"},
-    "BT38": {"category": "Battery", "name": "Standard Range battery pack"},
-    "BT42": {"category": "Battery", "name": "4680 structural battery pack"},
-    "BP00": {"category": "Battery", "name": "No Ludicrous upgrade"},
+    "BT37": {"category": "Battery", "name": _("Long Range battery pack")},
+    "BT38": {"category": "Battery", "name": _("Standard Range battery pack")},
+    "BT42": {"category": "Battery", "name": _("4680 structural battery pack")},
+    "BP00": {"category": "Battery", "name": _("No Ludicrous upgrade")},
     # Paint options
-    "PPSW": {"category": "Paint", "name": "Pearl White Multi-Coat paint"},
-    "PPMR": {"category": "Paint", "name": "Red Multi-Coat paint"},
-    "PMNG": {"category": "Paint", "name": "Midnight Silver Metallic paint"},
-    "PPSB": {"category": "Paint", "name": "Deep Blue Metallic paint"},
-    "PMBL": {"category": "Paint", "name": "Obsidian Black Metallic paint"},
-    "PMTL": {"category": "Paint", "name": "Titanium Metallic paint"},
-    "PBCW": {"category": "Paint", "name": "Solid Black paint"},
-    "PB02": {"category": "Paint", "name": "Marine Blue"},
+    "PPSW": {"category": "Paint", "name": _("Pearl White Multi-Coat paint")},
+    "PPMR": {"category": "Paint", "name": _("Red Multi-Coat paint")},
+    "PMNG": {"category": "Paint", "name": _("Midnight Silver Metallic paint")},
+    "PPSB": {"category": "Paint", "name": _("Deep Blue Metallic paint")},
+    "PMBL": {"category": "Paint", "name": _("Obsidian Black Metallic paint")},
+    "PMTL": {"category": "Paint", "name": _("Titanium Metallic paint")},
+    "PBCW": {"category": "Paint", "name": _("Solid Black paint")},
+    "PB02": {"category": "Paint", "name": _("Marine Blue")},
     # Wheels / tires / suspension
-    "WTAS": {"category": "Wheels", "name": '19" Sport Wheels'},
-    "W38B": {"category": "Wheels", "name": '18" Aero Wheels'},
-    "W39B": {"category": "Wheels", "name": '19" Sport Wheels'},
-    "W40B": {"category": "Wheels", "name": '20" Induction Wheels'},
-    "W41B": {"category": "Wheels", "name": '20" Gemini Wheels'},
-    "WTUR": {"category": "Wheels", "name": '21" Überturbine Wheels'},
-    "WY19P": {"category": "Wheels", "name": '19" Crossflow Wheels'},
-    "ST33": {"category": "Suspension", "name": "All-season tires"},
-    "SU3C": {"category": "Suspension", "name": "Coil suspension setup"},
+    "WTAS": {"category": "Wheels", "name": _('19" Sport Wheels')},
+    "W38B": {"category": "Wheels", "name": _('18" Aero Wheels')},
+    "W39B": {"category": "Wheels", "name": _('19" Sport Wheels')},
+    "W40B": {"category": "Wheels", "name": _('20" Induction Wheels')},
+    "W41B": {"category": "Wheels", "name": _('20" Gemini Wheels')},
+    "WTUR": {"category": "Wheels", "name": _('21" Überturbine Wheels')},
+    "WY19P": {"category": "Wheels", "name": _('19" Crossflow Wheels')},
+    "ST33": {"category": "Suspension", "name": _("All-season tires")},
+    "SU3C": {"category": "Suspension", "name": _("Coil suspension setup")},
     # Interior
-    "IN3PB": {"category": "Interior", "name": "Premium all-black interior"},
-    "IN3PW": {"category": "Interior", "name": "Premium black & white interior"},
-    "INYPB": {"category": "Interior", "name": "Model Y black interior"},
-    "INYPW": {"category": "Interior", "name": "Model Y black & white interior"},
-    "IPB8": {"category": "Interior", "name": "Premium all-black interior"},
-    "IL31": {"category": "Interior", "name": "Interior ambient lighting"},
-    "AU3P": {"category": "Interior", "name": "Premium audio system"},
-    "AF02": {"category": "Interior", "name": "Subzero weather / heated components"},
+    "IN3PB": {"category": "Interior", "name": _("Premium all-black interior")},
+    "IN3PW": {"category": "Interior", "name": _("Premium black & white interior")},
+    "INYPB": {"category": "Interior", "name": _("Model Y black interior")},
+    "INYPW": {"category": "Interior", "name": _("Model Y black & white interior")},
+    "IPB8": {"category": "Interior", "name": _("Premium all-black interior")},
+    "IL31": {"category": "Interior", "name": _("Interior ambient lighting")},
+    "AU3P": {"category": "Interior", "name": _("Premium audio system")},
+    "AF02": {"category": "Interior", "name": _("Subzero weather / heated components")},
     # Comfort / seating
-    "ST01": {"category": "Seating", "name": "Front heated seats"},
-    "RSF1": {"category": "Seating", "name": "Rear heated seats"},
-    "RSF2": {"category": "Seating", "name": "Second row seat heaters"},
-    "STY5S": {"category": "Seating", "name": "MY 5 Seat Interior"},
+    "ST01": {"category": "Seating", "name": _("Front heated seats")},
+    "RSF1": {"category": "Seating", "name": _("Rear heated seats")},
+    "RSF2": {"category": "Seating", "name": _("Second row seat heaters")},
+    "STY5S": {"category": "Seating", "name": _("MY 5 Seat Interior")},
     # Autopilot / software / connectivity
-    "APBS": {"category": "Software", "name": "Basic Autopilot"},
-    "APF0": {"category": "Software", "name": "Autopilot hardware with no features"},
-    "APF1": {"category": "Software", "name": "Autopilot convenience features"},
-    "APF2": {"category": "Software", "name": "Enhanced Autopilot"},
-    "APF3": {"category": "Software", "name": "Full Self-Driving computer (HW3)"},
-    "APPB": {"category": "Software", "name": "Full Self-Driving capability"},
-    "ACC1": {"category": "Connectivity", "name": "Premium connectivity"},
-    "CPF0": {"category": "Connectivity", "name": "Premium connectivity (trial)"},
+    "APBS": {"category": "Software", "name": _("Basic Autopilot")},
+    "APF0": {"category": "Software", "name": _("Autopilot hardware with no features")},
+    "APF1": {"category": "Software", "name": _("Autopilot convenience features")},
+    "APF2": {"category": "Software", "name": _("Enhanced Autopilot")},
+    "APF3": {"category": "Software", "name": _("Full Self-Driving computer (HW3)")},
+    "APPB": {"category": "Software", "name": _("Full Self-Driving capability")},
+    "ACC1": {"category": "Connectivity", "name": _("Premium connectivity")},
+    "CPF0": {"category": "Connectivity", "name": _("Premium connectivity (trial)")},
     "CPF1": {
         "category": "Connectivity",
-        "name": "Premium connectivity (1 year included)",
+        "name": _("Premium connectivity (1 year included)"),
     },
-    "SC04": {"category": "Charging", "name": "Pay-as-you-go Supercharging"},
-    "SC05": {"category": "Charging", "name": "Free unlimited Supercharging"},
+    "SC04": {"category": "Charging", "name": _("Pay-as-you-go Supercharging")},
+    "SC05": {"category": "Charging", "name": _("Free unlimited Supercharging")},
     # Safety / hardware
-    "FR04": {"category": "Hardware", "name": "HEPA filter & Bioweapon Defense Mode"},
-    "HM31": {"category": "Hardware", "name": "Power folding, heated side mirrors"},
-    "HL32": {"category": "Hardware", "name": "Matrix LED headlights"},
-    "PI01": {"category": "Hardware", "name": "Premium audio amplifier"},
-    "DRLH": {"category": "Hardware", "name": "Left-hand drive configuration"},
-    "DRRH": {"category": "Hardware", "name": "Right-hand drive configuration"},
-    "OPPF": {"category": "Protection", "name": "Factory paint protection film"},
-    "BC3R": {"category": "Hardware", "name": "Performance red brake calipers"},
+    "FR04": {"category": "Hardware", "name": _("HEPA filter & Bioweapon Defense Mode")},
+    "HM31": {"category": "Hardware", "name": _("Power folding, heated side mirrors")},
+    "HL32": {"category": "Hardware", "name": _("Matrix LED headlights")},
+    "PI01": {"category": "Hardware", "name": _("Premium audio amplifier")},
+    "DRLH": {"category": "Hardware", "name": _("Left-hand drive configuration")},
+    "DRRH": {"category": "Hardware", "name": _("Right-hand drive configuration")},
+    "OPPF": {"category": "Protection", "name": _("Factory paint protection film")},
+    "BC3R": {"category": "Hardware", "name": _("Performance red brake calipers")},
 }
 
 OPTION_HINT_RULES: List[tuple[re.Pattern[str], tuple[str, str]]] = [
-    (re.compile(r"^(PP|PM|PBC|PRS|PBS)"), ("Paint", "Exterior paint option")),
-    (re.compile(r"^W\d+"), ("Wheels", "Wheel package")),
-    (re.compile(r"^IN"), ("Interior", "Interior trim or material")),
-    (re.compile(r"^AP|^FS|^FSD|^EAP"), ("Software", "Autopilot or software package")),
-    (re.compile(r"^SC"), ("Charging", "Supercharging config")),
-    (re.compile(r"^MDL|^MDY|^MDX"), ("Vehicle", "Model designation")),
-    (re.compile(r"^BT"), ("Battery", "Battery configuration")),
-    (re.compile(r"^ST|^RS"), ("Seating", "Seat or interior comfort")),
-    (re.compile(r"^HP|^DU|^MT"), ("Performance", "Drive-unit or performance upgrade")),
-    (re.compile(r"^PK|^PRM"), ("Package", "Equipment package")),
-    (re.compile(r"^HM|^FR|^HL|^FG"), ("Hardware", "Hardware feature")),
+    (re.compile(r"^(PP|PM|PBC|PRS|PBS)"), ("Paint", _("Exterior paint option"))),
+    (re.compile(r"^W\d+"), ("Wheels", _("Wheel package"))),
+    (re.compile(r"^IN"), ("Interior", _("Interior trim or material"))),
+    (re.compile(r"^AP|^FS|^FSD|^EAP"), ("Software", _("Autopilot or software package"))),
+    (re.compile(r"^SC"), ("Charging", _("Supercharging config"))),
+    (re.compile(r"^MDL|^MDY|^MDX"), ("Vehicle", _("Model designation"))),
+    (re.compile(r"^BT"), ("Battery", _("Battery configuration"))),
+    (re.compile(r"^ST|^RS"), ("Seating", _("Seat or interior comfort"))),
+    (re.compile(r"^HP|^DU|^MT"), ("Performance", _("Drive-unit or performance upgrade"))),
+    (re.compile(r"^PK|^PRM"), ("Package", _("Equipment package"))),
+    (re.compile(r"^HM|^FR|^HL|^FG"), ("Hardware", _("Hardware feature"))),
 ]
 
 DELIVERY_TYPE_DESCRIPTIONS: Dict[str, str] = {
-    "PICKUP_SERVICE_CENTER": "Pickup at service/delivery center",
-    "PICKUP_HOME": "Home delivery",
-    "PICKUP_EXPRESS": "Express pickup",
-    "PICKUP_DC": "Delivery center appointment",
-    "PICKUP_STORE": "Retail store pickup",
-    "PICKUP_DIRECT": "Direct-to-customer handoff",
+    "PICKUP_SERVICE_CENTER": _("Pickup at service/delivery center"),
+    "PICKUP_HOME": _("Home delivery"),
+    "PICKUP_EXPRESS": _("Express pickup"),
+    "PICKUP_DC": _("Delivery center appointment"),
+    "PICKUP_STORE": _("Retail store pickup"),
+    "PICKUP_DIRECT": _("Direct-to-customer handoff"),
 }
 
 PAYMENT_STATUS_DESCRIPTIONS: Dict[str, str] = {
-    "MAKE_YOUR_FINAL_PAYMENT": "Final payment required",
-    "PAYMENT_SUCCESS": "Payment received",
-    "FUNDS_IN_TRANSIT": "Funds in transit",
-    "PAYMENT_SCHEDULED": "Payment scheduled",
-    "PAYMENT_PENDING": "Payment pending",
-    "PAYMENT_NOT_REQUIRED": "No payment required",
-    "PAYMENT_VERIFICATION": "Payment under verification",
+    "MAKE_YOUR_FINAL_PAYMENT": _("Final payment required"),
+    "PAYMENT_SUCCESS": _("Payment received"),
+    "FUNDS_IN_TRANSIT": _("Funds in transit"),
+    "PAYMENT_SCHEDULED": _("Payment scheduled"),
+    "PAYMENT_PENDING": _("Payment pending"),
+    "PAYMENT_NOT_REQUIRED": _("No payment required"),
+    "PAYMENT_VERIFICATION": _("Payment under verification"),
 }
 
 APPOINTMENT_STATUS_DESCRIPTIONS: Dict[str, str] = {
-    "NOT_SCHEDULED": "Not scheduled",
-    "SCHEDULED": "Appointment scheduled",
-    "CONFIRMED": "Appointment confirmed",
-    "RESCHEDULED": "Appointment rescheduled",
-    "AWAITING_CUSTOMER": "Waiting for customer to schedule",
-    "AWAITING_TESLA": "Tesla scheduling in progress",
-    "COMPLETED": "Appointment completed",
-    "CANCELLED": "Appointment cancelled",
+    "NOT_SCHEDULED": _("Not scheduled"),
+    "SCHEDULED": _("Appointment scheduled"),
+    "CONFIRMED": _("Appointment confirmed"),
+    "RESCHEDULED": _("Appointment rescheduled"),
+    "AWAITING_CUSTOMER": _("Waiting for customer to schedule"),
+    "AWAITING_TESLA": _("Tesla scheduling in progress"),
+    "COMPLETED": _("Appointment completed"),
+    "CANCELLED": _("Appointment cancelled"),
 }
 
 REGISTRATION_STATUS_DESCRIPTIONS: Dict[str, str] = {
-    "NOT_STARTED": "Registration not started",
-    "IN_PROGRESS": "Registration in progress",
-    "SUBMITTED": "Registration submitted",
-    "APPROVED": "Registration approved",
-    "COMPLETED": "Registration completed",
-    "PENDING": "Registration pending review",
+    "NOT_STARTED": _("Registration not started"),
+    "IN_PROGRESS": _("Registration in progress"),
+    "SUBMITTED": _("Registration submitted"),
+    "APPROVED": _("Registration approved"),
+    "COMPLETED": _("Registration completed"),
+    "PENDING": _("Registration pending review"),
 }
 
 REGISTRANT_TYPE_DESCRIPTIONS: Dict[str, str] = {
-    "INDIVIDUAL": "Individual registrant",
-    "BUSINESS": "Business registrant",
-    "LEASE": "Leased vehicle",
-    "COMPANY": "Company-owned",
-    "GOVERNMENT": "Government fleet",
+    "INDIVIDUAL": _("Individual registrant"),
+    "BUSINESS": _("Business registrant"),
+    "LEASE": _("Leased vehicle"),
+    "COMPANY": _("Company-owned"),
+    "GOVERNMENT": _("Government fleet"),
 }
 
 LOCALE_DESCRIPTIONS: Dict[str, str] = {
-    "EN_US": "English (United States)",
-    "EN_CA": "English (Canada)",
-    "EN_GB": "English (United Kingdom)",
-    "FR_FR": "French (France)",
-    "FR_CA": "French (Canada)",
-    "DE_DE": "German (Germany)",
-    "NL_NL": "Dutch (Netherlands)",
-    "ES_ES": "Spanish (Spain)",
-    "ES_MX": "Spanish (Mexico)",
-    "SV_SE": "Swedish (Sweden)",
+    "EN_US": _("English (United States)"),
+    "EN_CA": _("English (Canada)"),
+    "EN_GB": _("English (United Kingdom)"),
+    "FR_FR": _("French (France)"),
+    "FR_CA": _("French (Canada)"),
+    "DE_DE": _("German (Germany)"),
+    "NL_NL": _("Dutch (Netherlands)"),
+    "ES_ES": _("Spanish (Spain)"),
+    "ES_MX": _("Spanish (Mexico)"),
+    "SV_SE": _("Swedish (Sweden)"),
 }
 
 ORDER_STATUS_DESCRIPTIONS: Dict[str, str] = {
-    "NEW": "Order placed",
-    "ORDERED": "Order confirmed",
-    "BUILDING": "Vehicle in production",
-    "BUILT": "Vehicle built",
-    "IN_TRANSIT": "Vehicle in transit",
-    "DELIVERED": "Vehicle delivered",
-    "CANCELLED": "Order cancelled",
-    "HOLD": "Order on hold",
+    "NEW": _("Order placed"),
+    "ORDERED": _("Order confirmed"),
+    "BUILDING": _("Vehicle in production"),
+    "BUILT": _("Vehicle built"),
+    "IN_TRANSIT": _("Vehicle in transit"),
+    "DELIVERED": _("Vehicle delivered"),
+    "CANCELLED": _("Order cancelled"),
+    "HOLD": _("Order on hold"),
 }
 
 ORDER_SUBSTATUS_DESCRIPTIONS: Dict[str, str] = {
-    "ALLOCATION_PENDING": "Awaiting factory allocation",
-    "VIN_ASSIGNED": "VIN assigned",
-    "READY_FOR_DELIVERY": "Ready for delivery",
-    "AWAITING_PAYMENT": "Awaiting payment",
-    "DOCUMENTS_PENDING": "Paperwork pending",
+    "ALLOCATION_PENDING": _("Awaiting factory allocation"),
+    "VIN_ASSIGNED": _("VIN assigned"),
+    "READY_FOR_DELIVERY": _("Ready for delivery"),
+    "AWAITING_PAYMENT": _("Awaiting payment"),
+    "DOCUMENTS_PENDING": _("Paperwork pending"),
 }
 
 FINANCE_PRODUCT_TYPE_DESCRIPTIONS: Dict[str, str] = {
-    "RETAIL_LOAN": "Retail loan",
-    "LEASE": "Lease",
-    "CASH": "Cash purchase",
-    "BALLOON": "Balloon financing",
-    "TESLA_FINANCE": "Tesla financing",
+    "RETAIL_LOAN": _("Retail loan"),
+    "LEASE": _("Lease"),
+    "CASH": _("Cash purchase"),
+    "BALLOON": _("Balloon financing"),
+    "TESLA_FINANCE": _("Tesla financing"),
 }
 
 DELIVERY_GATE_DESCRIPTIONS: Dict[str, str] = {
-    "BEFORE_DELIVERY": "Before-delivery readiness",
-    "AT_DELIVERY": "Delivery-day handoff",
-    "AFTER_DELIVERY": "Post-delivery follow-up",
-    "BEFORE_DELIVERY_FINANCE": "Finance clearance before delivery",
-    "BEFORE_DELIVERY_DOCUMENTS": "Paperwork before delivery",
-    "BEFORE_DELIVERY_VEHICLE": "Vehicle prep before delivery",
+    "BEFORE_DELIVERY": _("Before-delivery readiness"),
+    "AT_DELIVERY": _("Delivery-day handoff"),
+    "AFTER_DELIVERY": _("Post-delivery follow-up"),
+    "BEFORE_DELIVERY_FINANCE": _("Finance clearance before delivery"),
+    "BEFORE_DELIVERY_DOCUMENTS": _("Paperwork before delivery"),
+    "BEFORE_DELIVERY_VEHICLE": _("Vehicle prep before delivery"),
+}
+
+ACTION_OWNER_DESCRIPTIONS: Dict[str, str] = {
+    "TESLA": _("Tesla"),
+    "CUSTOMER": _("Customer"),
 }
 
 DELIVERY_TIMING_DESCRIPTIONS: Dict[str, str] = {
-    "BEFORE_DELIVERY": "Before delivery",
-    "AT_DELIVERY": "During delivery",
-    "AFTER_DELIVERY": "After delivery",
-    "POST_DELIVERY": "Post-delivery",
-    "PRIOR_TO_APPOINTMENT": "Prior to appointment",
+    "BEFORE_DELIVERY": _("Before delivery"),
+    "AT_DELIVERY": _("During delivery"),
+    "AFTER_DELIVERY": _("After delivery"),
+    "POST_DELIVERY": _("Post-delivery"),
+    "PRIOR_TO_APPOINTMENT": _("Prior to appointment"),
 }
+
+tr = lambda s: _(s) if s else s
 
 
 def _decode_token_bundle(value: Optional[str]) -> Optional[Dict[str, Any]]:
@@ -303,19 +335,25 @@ def _ensure_request_tokens(
     return access_token, updated_bundle
 
 
-def _collect_order_entries(access_token: str) -> List[Dict[str, Any]]:
-    basic_orders = monitor.retrieve_orders(access_token)
+def _collect_order_entries(
+    access_token: str, force_refresh: bool = False
+) -> List[Dict[str, Any]]:
+    basic_orders = monitor.retrieve_orders(access_token, force_refresh=force_refresh)
     detailed_orders: List[Dict[str, Any]] = []
     for order in basic_orders:
         order_id = order.get("referenceNumber")
         if not order_id:
             continue
-        details = monitor.get_order_details(order_id, access_token)
+        details = monitor.get_order_details(
+            order_id, access_token, force_refresh=force_refresh
+        )
         detailed_orders.append({"order": order, "details": details})
     return detailed_orders
 
 
-def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _format_orders(
+    order_entries: List[Dict[str, Any]], _: Callable[[str], str] = _
+) -> List[Dict[str, Any]]:
     formatted_orders: List[Dict[str, Any]] = []
     for order_data in order_entries:
         order = order_data["order"]
@@ -343,32 +381,36 @@ def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         summary_items = _build_items(
             [
                 (
-                    "ETA to Delivery Center",
+                    _("ETA to Delivery Center"),
                     final_payment_data.get("etaToDeliveryCenter") or order.get("eta"),
                 ),
                 (
-                    "Delivery Type",
-                    _describe_delivery_type(
-                        scheduling.get("deliveryType")
-                        or final_payment_data.get("deliveryType")
+                    _("Delivery Type"),
+                    tr(
+                        _describe_delivery_type(
+                            scheduling.get("deliveryType")
+                            or final_payment_data.get("deliveryType")
+                        )
                     ),
                 ),
                 (
-                    "Pickup Address",
+                    _("Pickup Address"),
                     scheduling.get("deliveryAddressTitle")
                     or (final_payment_data.get("deliveryAddress") or {}).get("address1")
                     or final_payment_data.get("pickupLocation"),
                 ),
                 (
-                    "Payment Status",
-                    _describe_payment_status(
-                        final_payment_task.get("status")
-                        if isinstance(final_payment_task, dict)
-                        else None
+                    _("Payment Status"),
+                    tr(
+                        _describe_payment_status(
+                            final_payment_task.get("status")
+                            if isinstance(final_payment_task, dict)
+                            else None
+                        )
                     ),
                 ),
                 (
-                    "Customer Amount Due",
+                    _("Customer Amount Due"),
                     _format_currency(
                         (
                             final_payment_task.get("amountDue")
@@ -378,9 +420,10 @@ def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                         currency_code,
                     ),
                 ),
-                ("Order Placed", _format_timestamp(order_info.get("orderPlacedDate"))),
-                ("Order Booked", _format_timestamp(order_info.get("orderBookedDate"))),
-            ]
+                (_("Order Placed"), _format_timestamp(order_info.get("orderPlacedDate"))),
+                (_("Order Booked"), _format_timestamp(order_info.get("orderBookedDate"))),
+            ],
+            _,
         )
 
         image_urls = monitor.get_vehicle_image_urls(
@@ -395,17 +438,17 @@ def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             {
                 "rn": order["referenceNumber"],
                 "model": order["modelCode"].upper(),
-                "vin": vin or "N/A",
+                "vin": vin or _("N/A"),
                 "vin_details": vin_details,
-                "status": order.get("orderStatus", "unknown"),
+                "status": order.get("orderStatus", _("unknown")),
                 "delivery_date": scheduling.get(
-                    "apptDateTimeAddressStr", "Not Scheduled"
+                    "apptDateTimeAddressStr", _("Not Scheduled")
                 ),
-                "delivery_window": scheduling.get("deliveryWindowDisplay", "TBD"),
-                "location": monitor.get_store_label(
-                    order_info.get("vehicleRoutingLocation", 0)
+                "delivery_window": scheduling.get("deliveryWindowDisplay", _("TBD")),
+                "location": _(
+                    monitor.get_store_label(order_info.get("vehicleRoutingLocation", 0))
                 ),
-                "eta": final_payment_data.get("etaToDeliveryCenter", "Unknown"),
+                "eta": final_payment_data.get("etaToDeliveryCenter", _("Unknown")),
                 "image_urls": image_urls,
                 "tasks": tasks_list,
                 "summary_items": summary_items,
@@ -439,13 +482,15 @@ def _format_timestamp(value: Any) -> Optional[str]:
         return str(value)
 
 
-def _build_items(pairs: List[tuple[str, Any]]) -> List[Dict[str, str]]:
+def _build_items(
+    pairs: List[tuple[str, Any]], _: Callable[[str], str] = _
+) -> List[Dict[str, str]]:
     items: List[Dict[str, str]] = []
     for label, value in pairs:
         if value in (None, "", []):
             continue
         if isinstance(value, bool):
-            display = "Yes" if value else "No"
+            display = _("Yes") if value else _("No")
         else:
             display = str(value)
         items.append({"label": label, "value": _format_rich_value(display)})
@@ -463,7 +508,9 @@ def _format_rich_value(value: str) -> str:
     return text
 
 
-def describe_market_options(option_blob: Any) -> List[Dict[str, str]]:
+def describe_market_options(
+    option_blob: Any, _: Callable[[str], str] = _
+) -> List[Dict[str, str]]:
     if not option_blob:
         return []
 
@@ -499,7 +546,7 @@ def describe_market_options(option_blob: Any) -> List[Dict[str, str]]:
     for code in codes:
         info = MARKET_OPTION_CATALOG.get(code)
         if info:
-            entry = info["name"]
+            entry = _(info["name"])
             if code not in entry:
                 entry = f"{entry} ({code})"
             grouped[info["category"]].append(entry)
@@ -510,13 +557,14 @@ def describe_market_options(option_blob: Any) -> List[Dict[str, str]]:
     for category, values in sorted(grouped.items()):
         if not values:
             continue
+        label = _(CATEGORY_LABELS.get(category, f"{category} Options"))
         items.append(
-            {"label": f"{category} Options", "value": ", ".join(dict.fromkeys(values))}
+            {"label": label, "value": ", ".join(dict.fromkeys(values))}
         )
 
     for code in dict.fromkeys(sorted(unknown)):
         label, description = _infer_option_hint(code)
-        items.append({"label": label, "value": f"{description} ({code})"})
+        items.append({"label": _(label), "value": f"{_(description)} ({code})"})
 
     return items
 
@@ -576,27 +624,29 @@ def _describe_delivery_timing(value: Any) -> Optional[str]:
 
 def _infer_option_hint(code: str) -> tuple[str, str]:
     if not code:
-        return "Option", "Unrecognized option"
+        return _("Option"), _("Unrecognized option")
     for pattern, (label, description) in OPTION_HINT_RULES:
         if pattern.match(code):
             return label, description
-    return "Option", "Custom configuration"
+    return _("Option"), _("Custom configuration")
 
 
-def _format_blocker_time(value: Any) -> str:
+def _format_blocker_time(value: Any, _: Callable[[str], str] = _) -> str:
     if value in (None, ""):
-        return "N/A"
+        return _("N/A")
     key = str(value).upper()
     if key in DELIVERY_TIMING_DESCRIPTIONS:
-        return DELIVERY_TIMING_DESCRIPTIONS[key]
+        return _(DELIVERY_TIMING_DESCRIPTIONS[key])
     timestamp = _format_timestamp(value)
     if timestamp and timestamp != str(value):
         return timestamp
     described = _describe_delivery_timing(value)
-    return described or str(value)
+    return _(described) if described else str(value)
 
 
-def _extract_delivery_blockers(readiness: Dict[str, Any]) -> List[Dict[str, str]]:
+def _extract_delivery_blockers(
+    readiness: Dict[str, Any], _: Callable[[str], str] = _
+) -> List[Dict[str, str]]:
     gates = readiness.get("gates") or []
     gate_iterable = gates.values() if isinstance(gates, dict) else gates
 
@@ -604,21 +654,28 @@ def _extract_delivery_blockers(readiness: Dict[str, Any]) -> List[Dict[str, str]
     for gate in gate_iterable:
         if not isinstance(gate, dict) or not gate.get("isBlocker"):
             continue
-        gate_label = _describe_delivery_gate(gate.get("gate", "UNKNOWN")) or "Unknown"
-        owner_label = (
-            _describe_code(gate.get("actionOwner", "Unknown"), {}) or "Unknown"
+        gate_val = _describe_delivery_gate(gate.get("gate", "UNKNOWN"))
+        gate_label = _(gate_val) if gate_val else _("Unknown")
+
+        owner_val = _describe_code(
+            gate.get("actionOwner", "Unknown"), ACTION_OWNER_DESCRIPTIONS
         )
+        owner_label = _(owner_val) if owner_val else _("Unknown")
+
         blockers.append(
             {
                 "gate": gate_label,
                 "owner": owner_label,
-                "action_time": _format_blocker_time(gate.get("actionTime")),
+                "action_time": _format_blocker_time(gate.get("actionTime"), _),
             }
         )
     return blockers
 
 
-def build_order_insights(order_entry: Dict[str, Any]) -> Dict[str, Any]:
+def build_order_insights(
+    order_entry: Dict[str, Any], _: Callable[[str], str] = _
+) -> Dict[str, Any]:
+    tr = lambda s: _(s) if s else s
     order = order_entry.get("order", {}) or {}
     details = order_entry.get("details", {}) or {}
     tasks = details.get("tasks", {}) or {}
@@ -640,48 +697,56 @@ def build_order_insights(order_entry: Dict[str, Any]) -> Dict[str, Any]:
     interest_rate = financing_details.get("interestRate")
     interest_display = f"{interest_rate}%" if interest_rate not in (None, "") else None
     term_months = financing_details.get("termsInMonths")
-    term_display = f"{term_months} months" if term_months not in (None, "") else None
+    term_display = (
+        f"{term_months} {_('months')}" if term_months not in (None, "") else None
+    )
 
     finance_items = _build_items(
         [
-            ("Payment Status", _describe_payment_status(final_payment.get("status"))),
-            ("Finance Partner", financing_details.get("financePartnerName")),
             (
-                "Product Type",
-                _describe_finance_product(
-                    financing_details.get("financePartnerType")
-                    or final_payment.get("orderType")
+                _("Payment Status"),
+                tr(_describe_payment_status(final_payment.get("status"))),
+            ),
+            (_("Finance Partner"), financing_details.get("financePartnerName")),
+            (
+                _("Product Type"),
+                tr(
+                    _describe_finance_product(
+                        financing_details.get("financePartnerType")
+                        or final_payment.get("orderType")
+                    )
                 ),
             ),
-            ("Interest Rate", interest_display),
+            (_("Interest Rate"), interest_display),
             (
-                "Monthly Payment",
+                _("Monthly Payment"),
                 _format_currency(
                     financing_details.get("monthlyPayment"), currency_code
                 ),
             ),
-            ("Term", term_display),
+            (_("Term"), term_display),
             (
-                "Down Payment",
+                _("Down Payment"),
                 _format_currency(
                     financing_details.get("downpaymentToLessor"), currency_code
                 ),
             ),
             (
-                "Customer Amount Due",
+                _("Customer Amount Due"),
                 _format_currency(final_payment.get("amountDue"), currency_code),
             ),
             (
-                "Amount Sent",
+                _("Amount Sent"),
                 _format_currency(final_payment.get("amountSent"), currency_code),
             ),
             (
-                "Lender Amount Due",
+                _("Lender Amount Due"),
                 _format_currency(
                     final_payment_data.get("amountDueFromLender"), currency_code
                 ),
             ),
-        ]
+        ],
+        _,
     )
 
     readiness = (
@@ -693,85 +758,104 @@ def build_order_insights(order_entry: Dict[str, Any]) -> Dict[str, Any]:
     delivery_items = _build_items(
         [
             (
-                "Delivery Type",
-                _describe_delivery_type(
-                    scheduling.get("deliveryType")
-                    or final_payment_data.get("deliveryType")
+                _("Delivery Type"),
+                tr(
+                    _describe_delivery_type(
+                        scheduling.get("deliveryType")
+                        or final_payment_data.get("deliveryType")
+                    )
                 ),
             ),
             (
-                "Pickup Location",
+                _("Pickup Location"),
                 scheduling.get("deliveryAddressTitle")
                 or (final_payment_data.get("deliveryAddress") or {}).get("address1")
                 or final_payment_data.get("pickupLocation"),
             ),
-            ("Ready To Accept", scheduling.get("readyToAccept")),
-            ("Self-Scheduling", scheduling.get("selfSchedulingUrl")),
+            (_("Ready To Accept"), scheduling.get("readyToAccept")),
+            (_("Self-Scheduling"), scheduling.get("selfSchedulingUrl")),
             (
-                "Appointment Status",
-                _describe_appointment_status(scheduling.get("appointmentStatusName")),
+                _("Appointment Status"),
+                tr(
+                    _describe_appointment_status(
+                        scheduling.get("appointmentStatusName")
+                    )
+                ),
             ),
-            ("Tesla Actions Pending", readiness.get("hasTeslaAction")),
-            ("Customer Actions Pending", readiness.get("hasCustomerAction")),
-            ("Has Blocker", readiness.get("hasBlocker")),
-        ]
+            (_("Tesla Actions Pending"), readiness.get("hasTeslaAction")),
+            (_("Customer Actions Pending"), readiness.get("hasCustomerAction")),
+            (_("Has Blocker"), readiness.get("hasBlocker")),
+        ],
+        _,
     )
 
     registration_details = registration.get("orderDetails", {}) or {}
     registration_items = _build_items(
         [
             (
-                "Registration Status",
-                _describe_registration_status(
-                    registration_details.get("registrationStatus")
-                    or registration.get("status")
+                _("Registration Status"),
+                tr(
+                    _describe_registration_status(
+                        registration_details.get("registrationStatus")
+                        or registration.get("status")
+                    )
                 ),
             ),
             (
-                "Registrant Type",
-                _describe_registrant_type(
-                    registration_details.get("registrantType")
-                    or registration.get("registrantType")
+                _("Registrant Type"),
+                tr(
+                    _describe_registrant_type(
+                        registration_details.get("registrantType")
+                        or registration.get("registrantType")
+                    )
                 ),
             ),
             (
-                "Order Placed",
+                _("Order Placed"),
                 _format_timestamp(registration_details.get("orderPlacedDate")),
             ),
             (
-                "Order Booked",
+                _("Order Booked"),
                 _format_timestamp(registration_details.get("orderBookedDate")),
             ),
             (
-                "Primary Registrant",
+                _("Primary Registrant"),
                 registration.get("strings", {}).get("messageBody")
                 or registration_details.get("primaryRegistrantType"),
             ),
             (
-                "Country",
+                _("Country"),
                 registration_details.get("countryCode") or order.get("countryCode"),
             ),
             (
-                "Delivery Alerts",
+                _("Delivery Alerts"),
                 registration.get("alertStatuses", {}).get("regDelivery"),
             ),
-        ]
+        ],
+        _,
     )
 
     metadata_items = _build_items(
         [
-            ("Order Status", _describe_order_status(order.get("orderStatus"))),
-            ("Order Substatus", _describe_order_substatus(order.get("orderSubstatus"))),
-            ("Vehicle Map ID", order.get("vehicleMapId")),
-            ("Locale", _describe_locale(order.get("locale"))),
-            ("B2B Order", order.get("isB2b")),
-            ("Used Vehicle", order.get("isUsed")),
-        ]
+            (
+                _("Order Status"),
+                tr(_describe_order_status(order.get("orderStatus"))),
+            ),
+            (
+                _("Order Substatus"),
+                tr(_describe_order_substatus(order.get("orderSubstatus"))),
+            ),
+            (_("Vehicle Map ID"), order.get("vehicleMapId")),
+            (_("Locale"), tr(_describe_locale(order.get("locale")))),
+            (_("B2B Order"), order.get("isB2b")),
+            (_("Used Vehicle"), order.get("isUsed")),
+        ],
+        _,
     )
 
-    metadata_items.extend(describe_market_options(order.get("mktOptions")))
+    metadata_items.extend(describe_market_options(order.get("mktOptions"), _))
 
-    blockers = _extract_delivery_blockers(readiness)
+    blockers = _extract_delivery_blockers(readiness, _)
 
     return {
         "finance": finance_items,
@@ -782,14 +866,45 @@ def build_order_insights(order_entry: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def get_template_context(request: Request, **kwargs):
+    locale = i18n.get_locale(request)
+    translations = i18n.get_translation(locale)
+
+    context = {
+        "request": request,
+        "_": translations.gettext,
+        "locale": locale,
+        **kwargs
+    }
+    return context
+
+
+@app.get("/set-language")
+async def set_language(request: Request, lang: str, next_url: str = "/"):
+    if lang not in i18n.supported_locales:
+        lang = i18n.default_locale
+    
+    # Validate next_url to prevent open redirects (basic check)
+    if not next_url.startswith("/"):
+        next_url = "/"
+        
+    response = RedirectResponse(url=next_url, status_code=303)
+    response.set_cookie(key=LANG_COOKIE_NAME, value=lang, max_age=365*24*60*60)
+    return response
+
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
     access_token, token_bundle = _ensure_request_tokens(request)
     if not access_token or not token_bundle:
         return _redirect_to_login(clear=True)
 
+    force_refresh = request.query_params.get("refreshed") == "1"
+
     try:
-        detailed_orders = _collect_order_entries(access_token)
+        detailed_orders = _collect_order_entries(
+            access_token, force_refresh=force_refresh
+        )
     except Exception as exc:
         logger.error("Failed to fetch Tesla orders: %s", exc)
         response = HTMLResponse(
@@ -797,13 +912,20 @@ async def dashboard(request: Request):
         )
         return _finalize_response(response, token_bundle)
 
-    formatted_orders = _format_orders(detailed_orders)
-    context = {
-        "request": request,
-        "orders": formatted_orders,
-        "orders_json": formatted_orders,
-        "refreshed": request.query_params.get("refreshed") == "1",
-    }
+    locale = i18n.get_locale(request)
+    translations = i18n.get_translation(locale)
+    _ = translations.gettext
+
+    formatted_orders = _format_orders(detailed_orders, _)
+    # Generate a language-neutral version for the history snapshot
+    snapshot_orders = _format_orders(detailed_orders, lambda s: s)
+
+    context = get_template_context(
+        request,
+        orders=formatted_orders,
+        orders_json=snapshot_orders,
+        refreshed=force_refresh,
+    )
     response = templates.TemplateResponse("index.html", context)
     return _finalize_response(response, token_bundle)
 
@@ -812,14 +934,14 @@ async def dashboard(request: Request):
 async def login_page(request: Request):
     auth_url = monitor.get_auth_url()
     response = templates.TemplateResponse(
-        "login.html", {"request": request, "auth_url": auth_url}
+        "login.html", get_template_context(request, auth_url=auth_url)
     )
     return _finalize_response(response, clear=True)
 
 
 @app.get("/logout", response_class=HTMLResponse)
 async def logout(request: Request):
-    response = templates.TemplateResponse("logout.html", {"request": request})
+    response = templates.TemplateResponse("logout.html", get_template_context(request))
     return _finalize_response(response, clear=True)
 
 
@@ -832,7 +954,7 @@ async def callback(request: Request, url: str = Form(...)):
         logger.error("Login failed: %s", exc)
         return HTMLResponse(content=f"Login failed: {exc}", status_code=400)
 
-    context = {"request": request, "tokens": tokens}
+    context = get_template_context(request, tokens=tokens)
     response = templates.TemplateResponse("callback_success.html", context)
     return _finalize_response(response, tokens)
 
@@ -848,7 +970,7 @@ async def refresh_redirect(request: Request):
 
 @app.get("/history", response_class=HTMLResponse)
 async def history(request: Request):
-    response = templates.TemplateResponse("history.html", {"request": request})
+    response = templates.TemplateResponse("history.html", get_template_context(request))
     return _finalize_response(response)
 
 
