@@ -42,7 +42,7 @@ class TeslaOrderMonitor:
             .rstrip(b"=")
             .decode("utf-8")
         )
-        
+
         auth_params = {
             "client_id": CLIENT_ID,
             "redirect_uri": REDIRECT_URI,
@@ -53,12 +53,8 @@ class TeslaOrderMonitor:
             "code_challenge_method": CODE_CHALLENGE_METHOD,
         }
         auth_url = f"{AUTH_URL}?{urllib.parse.urlencode(auth_params)}"
-        
-        return {
-            "state": state,
-            "code_verifier": code_verifier,
-            "auth_url": auth_url
-        }
+
+        return {"state": state, "code_verifier": code_verifier, "auth_url": auth_url}
 
     def parse_redirect_url(self, redirected_url: str) -> str:
         parsed_url = urllib.parse.urlparse(redirected_url)
@@ -67,7 +63,9 @@ class TeslaOrderMonitor:
             raise ValueError("Authorization code not found in the redirected URL.")
         return query_params["code"][0]
 
-    def exchange_code_for_tokens(self, auth_code: str, code_verifier: str) -> Dict[str, Any]:
+    def exchange_code_for_tokens(
+        self, auth_code: str, code_verifier: str
+    ) -> Dict[str, Any]:
         token_data = {
             "grant_type": "authorization_code",
             "client_id": CLIENT_ID,
