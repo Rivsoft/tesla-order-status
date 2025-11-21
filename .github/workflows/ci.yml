@@ -13,6 +13,9 @@ env:
 
 jobs:
   quality:
+    permissions:
+      contents: read
+      statuses: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
