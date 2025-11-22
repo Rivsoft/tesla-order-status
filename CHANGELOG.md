@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.1.0 (2025-11-22)
+
+### Features
+
+- Enhance order summary with vehicle mileage and delivery window
+  ([`a353e52`](https://github.com/Rivsoft/tesla-order-status/commit/a353e529e0e1f1d30f2f70364dbbc7e04500d65a))
+
+
 ## v1.0.1 (2025-11-22)
 
 ### Bug Fixes
