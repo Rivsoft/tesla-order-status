@@ -361,9 +361,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         Object.entries(FIELD_LABELS).forEach(([key, label]) => {
             const row = document.createElement('p');
-            const value = order[key] ?? '—';
             const hasPrevious = Boolean(previousOrder);
-            const previousValue = hasPrevious ? (previousOrder[key] ?? '—') : '—';
+            const value = resolveFieldValue(order, key) ?? '—';
+            const previousValue = hasPrevious ? (resolveFieldValue(previousOrder, key) ?? '—') : '—';
             const changed = hasPrevious && previousValue !== value;
 
             const labelSpan = document.createElement('span');
