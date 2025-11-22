@@ -28,21 +28,49 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col"
+      data-order-digest="{{ orders_digest|default('') }}"
+      data-orders-captured="{{ orders_captured_at|default('') }}"
+      data-refresh-interval="{{ auto_refresh_interval_ms }}">
     <nav class="bg-zinc-900 border-b border-zinc-800 p-4">
-        <div class="max-w-7xl mx-auto w-full flex justify-between items-center px-2">
+        <div class="max-w-7xl mx-auto w-full flex flex-col gap-3 md:flex-row md:justify-between md:items-center px-2">
             <a href="/" class="text-2xl font-bold text-white flex items-center gap-2">
                 <svg class="w-8 h-8 text-tesla-red" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
                 Tesla Status
             </a>
-            <div class="flex gap-4">
-                <a href="/" class="hover:text-tesla-red transition">Dashboard</a>
-                <a href="/history" class="hover:text-tesla-red transition">History</a>
-                <a href="/refresh" class="bg-tesla-red hover:bg-red-700 text-white px-4 py-1 rounded transition">Refresh</a>
-                <a href="/logout" class="hover:text-tesla-red transition">Logout</a>
+            <div class="flex flex-col gap-3 md:gap-6 md:flex-row md:items-center">
+                <div class="flex gap-4 flex-wrap items-center text-sm">
+                    <a href="/" class="hover:text-tesla-red transition">Dashboard</a>
+                    <a href="/history" class="hover:text-tesla-red transition">History</a>
+                    <a href="/refresh" class="bg-tesla-red hover:bg-red-700 text-white px-4 py-1 rounded transition">Refresh</a>
+                    <a href="/logout" class="hover:text-tesla-red transition">Logout</a>
+                </div>
+                <div class="flex flex-col text-xs text-zinc-400">
+                    <span data-notification-status>Desktop alerts off</span>
+                    <button type="button"
+                            data-notification-toggle
+                            class="text-[0.7rem] uppercase tracking-wide border border-zinc-500 rounded px-3 py-1 bg-transparent hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200">
+                        Enable desktop alerts
+                    </button>
+                </div>
             </div>
         </div>
     </nav>
+
+    <div class="hidden bg-amber-500/10 border-b border-amber-500/30 text-amber-100" data-change-indicator role="status" aria-live="polite">
+        <div class="max-w-7xl mx-auto w-full px-4 py-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+                <p class="text-sm font-semibold uppercase tracking-wide">Tesla order changes detected</p>
+                <p class="text-xs text-amber-200">Updated <span data-change-time>just now</span></p>
+            </div>
+            <button type="button"
+                    data-change-link
+                    class="inline-flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-lg border border-amber-400/60 bg-amber-400/10 hover:bg-amber-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-200">
+                View history
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+            </button>
+        </div>
+    </div>
 
     <main class="max-w-7xl mx-auto w-full px-4 py-6 flex-grow">
         {% block content %}{% endblock %}

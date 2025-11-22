@@ -1,0 +1,114 @@
+{
+  "orders": [
+    {
+      "rn": "RN123456",
+      "model": "MDLY",
+      "vin": "7SAFGA00000000001",
+      "vin_details": null,
+      "status": "in_transit",
+      "delivery_date": "2025-12-01 10:30",
+      "delivery_window": "Nov 30 - Dec 3",
+      "location": "Tesla Center Austin",
+      "eta": "2025-12-02",
+      "image_urls": [
+        "https://placehold.co/600x400?text=Model+Y"
+      ],
+      "tasks": [
+        {
+          "name": "Finalize Trade-In",
+          "complete": false,
+          "status": "Pending",
+          "details": "Upload photos of your trade-in vehicle.",
+          "actionable": true,
+          "waiting_reason": null,
+          "cta_url": "https://tesla.com/tradein",
+          "cta_label": "Open task",
+          "metadata": [
+            { "label": "Tesla status", "value": "Pending" }
+          ]
+        },
+        {
+          "name": "Delivery Scheduling",
+          "complete": false,
+          "status": "Waiting on Tesla",
+          "details": "We will notify you when appointments open.",
+          "actionable": false,
+          "waiting_reason": "Tesla is preparing your vehicle.",
+          "cta_url": null,
+          "cta_label": "Open task",
+          "metadata": []
+        }
+      ],
+      "summary_items": [
+        { "label": "Delivery Type", "value": "Pickup" },
+        { "label": "Payment Status", "value": "Pending" }
+      ],
+      "insights": {
+        "delivery": [
+          { "label": "Logistics", "value": "Vehicle in transit from factory." }
+        ],
+        "registration": [
+          { "label": "Status", "value": "Paperwork pending" }
+        ],
+        "finance": [
+          { "label": "Amount Due", "value": "$45,000" }
+        ],
+        "metadata": [
+          { "label": "Locale", "value": "EN_US" }
+        ],
+        "blockers": []
+      },
+      "raw_payload": {
+        "referenceNumber": "RN123456",
+        "modelCode": "MDLY",
+        "mktOptions": "AD15,FG31,LP01",
+        "orderStatus": "IN_TRANSIT",
+        "vehicleRoutingLocation": 1024,
+        "orderInformation": {
+          "orderPlacedDate": "2025-08-15T12:05:00Z",
+          "orderBookedDate": "2025-08-17T09:45:00Z",
+          "deliveryLocale": "en_US"
+        },
+        "scheduling": {
+          "deliveryWindowDisplay": "Nov 30 - Dec 15",
+          "apptDateTimeAddressStr": "2025-12-01 10:30",
+          "dealerDeliveryAddress": {
+            "name": "Tesla Center Austin",
+            "address1": "12845 Research Blvd",
+            "city": "Austin",
+            "state": "TX",
+            "postalCode": "78759"
+          }
+        },
+        "finalPaymentData": {
+          "etaToDeliveryCenter": "2025-12-02",
+          "deliveryAddress": {
+            "address1": "12845 Research Blvd",
+            "city": "Austin",
+            "state": "TX",
+            "postalCode": "78759"
+          },
+          "amountDue": 45000,
+          "currency": "USD"
+        },
+        "tasks": [
+          {
+            "name": "Finalize Trade-In",
+            "status": "Pending",
+            "amountDue": 45000,
+            "cta": "https://tesla.com/tradein"
+          },
+          {
+            "name": "Delivery Scheduling",
+            "status": "Waiting on Tesla",
+            "cta": null
+          }
+        ],
+        "notes": {
+          "insights": ["Vehicle departed Fremont", "Carrier en route"],
+          "latestUpdate": "2025-11-20T18:20:00Z"
+        }
+      }
+    }
+  ]
+}

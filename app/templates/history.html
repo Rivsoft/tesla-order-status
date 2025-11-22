@@ -43,21 +43,15 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script>
+<script type="module">
+import { readHistoryEntries, clearHistoryEntries } from '/static/js/history-store.js'
+
 document.addEventListener('DOMContentLoaded', () => {
-    const storageKey = 'teslaOrderHistory';
     const listEl = document.getElementById('history-list');
     const emptyEl = document.getElementById('history-empty');
     const clearBtn = document.getElementById('clear-history');
 
-    const readHistory = () => {
-        try {
-            return JSON.parse(localStorage.getItem(storageKey)) || [];
-        } catch (err) {
-            console.warn('Unable to read history', err);
-            return [];
-        }
-    };
+    const readHistory = () => readHistoryEntries();
 
     const formatDate = (value) => {
         try {
@@ -473,7 +467,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     clearBtn?.addEventListener('click', () => {
-        localStorage.removeItem(storageKey);
+        if (!confirm('Clear all stored history snapshots? This cannot be undone.')) {
+            return;
+        }
+        clearHistoryEntries();
         renderHistory();
     });
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import logging
 import os
@@ -8,10 +9,10 @@ import re
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, Dict, List, Optional, Tuple, TypeVar
 
 from fastapi import FastAPI, Form, Request
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -29,10 +30,14 @@ vin_decoder = VinDecoder()
 metrics_enabled = os.getenv("ENABLE_VISIT_METRICS", "1") != "0"
 visit_metrics = build_metrics_from_env() if metrics_enabled else None
 
-ResponseT = TypeVar("ResponseT", HTMLResponse, RedirectResponse)
+ResponseT = TypeVar("ResponseT", HTMLResponse, RedirectResponse, JSONResponse)
+
+REFRESH_INTERVAL_SECONDS = int(os.getenv("ORDER_REFRESH_INTERVAL_SECONDS", "300"))
+FORMATTED_FIXTURE_PATH = os.getenv("TESLA_FORMATTED_FIXTURE")
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
+templates.env.globals["auto_refresh_interval_ms"] = REFRESH_INTERVAL_SECONDS * 1000
 
 logger = logging.getLogger(__name__)
 
@@ -416,9 +421,62 @@ def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return formatted_orders
 
 
+def _compute_orders_digest(orders: List[Dict[str, Any]]) -> str:
+    serialized = json.dumps(
+        orders,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    )
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _load_formatted_fixture() -> Optional[List[Dict[str, Any]]]:
+    if not FORMATTED_FIXTURE_PATH:
+        return None
+
+    try:
+        payload = json.loads(Path(FORMATTED_FIXTURE_PATH).read_text("utf-8"))
+    except FileNotFoundError:
+        logger.warning(
+            "TESLA_FORMATTED_FIXTURE path not found: %s", FORMATTED_FIXTURE_PATH
+        )
+        return None
+    except json.JSONDecodeError as exc:
+        logger.warning(
+            "Unable to parse TESLA_FORMATTED_FIXTURE (%s): %s",
+            FORMATTED_FIXTURE_PATH,
+            exc,
+        )
+        return None
+
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        candidates = payload.get("orders") or payload.get("formatted_orders")
+        if isinstance(candidates, list):
+            return candidates
+
+    logger.warning(
+        "TESLA_FORMATTED_FIXTURE must be a list of formatted orders or wrap it in an 'orders' key"
+    )
+    return None
+
+
+def _build_order_snapshot(access_token: str) -> Tuple[List[Dict[str, Any]], str]:
+    fixture_orders = _load_formatted_fixture()
+    if fixture_orders is not None:
+        return fixture_orders, _compute_orders_digest(fixture_orders)
+
+    detailed_orders = _collect_order_entries(access_token)
+    formatted_orders = _format_orders(detailed_orders)
+    return formatted_orders, _compute_orders_digest(formatted_orders)
+
+
 def _format_currency(amount: Any, currency: Optional[str]) -> Optional[str]:
     if amount in (None, ""):
         return None
+
     try:
         numeric = float(str(amount))
         formatted = f"{numeric:,.2f}"
@@ -867,6 +925,30 @@ async def refresh_redirect(request: Request):
 async def history(request: Request):
     response = templates.TemplateResponse("history.html", {"request": request})
     return _finalize_response(response)
+
+
+@app.get("/api/orders", response_class=JSONResponse)
+async def api_orders(request: Request):
+    access_token, token_bundle = _ensure_request_tokens(request)
+    if not access_token or not token_bundle:
+        response = JSONResponse({"error": "not_authenticated"}, status_code=401)
+        return _finalize_response(response, clear=True)
+
+    try:
+        formatted_orders, orders_digest = _build_order_snapshot(access_token)
+    except Exception as exc:
+        logger.error("Failed to refresh Tesla orders: %s", exc)
+        response = JSONResponse({"error": "refresh_failed"}, status_code=502)
+        return _finalize_response(response, token_bundle)
+
+    payload = {
+        "orders": formatted_orders,
+        "digest": orders_digest,
+        "captured_at": datetime.utcnow().isoformat(),
+        "refresh_interval_ms": REFRESH_INTERVAL_SECONDS * 1000,
+    }
+    response = JSONResponse(payload)
+    return _finalize_response(response, token_bundle)
 
 
 @app.get("/sw.js")

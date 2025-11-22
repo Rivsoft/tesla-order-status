@@ -21,6 +21,7 @@ Need to reset everything? Use **Logout** or clear the site data in your browser�
 - **Live order view**: Keep tabs on VIN assignment, delivery tasks, financing, registration, and raw payload details.
 - **Snapshot history**: Capture browser-only versions of each update and see what changed at a glance.
 - **On-demand refresh**: Pull new data from Tesla's Owner API whenever you like.
+- **Desktop alerts**: Opt in to native OS notifications when the periodic poll detects a new snapshot.
 - **Dark-mode friendly**: Carefully tuned colors for quick scanning day or night.
 
 ---
@@ -47,6 +48,27 @@ Check existing issues before filing a new one—your question might already be a
 
 ## Want to Self-Host?
 Self-hosting is totally optional. If you prefer to run your own instance, clone this repository and read `docs/TECHNICAL_GUIDE.md` for detailed setup steps, architecture notes, and troubleshooting tips. Keep your Tesla credentials secure and avoid exposing the app to the public internet without proper safeguards.
+
+### Local Development Quickstart
+1. Install [Poetry](https://python-poetry.org/). There is no need to create a virtual environment manually—`poetry install` will build one for you (run `poetry env info` to see where it lives).
+2. Run `poetry install` from the project root to restore dependencies.
+3. Start the server with the new convenience script:
+	```bash
+	poetry run tesla-order-status --reload
+	```
+	This is equivalent to `npm start` in a Node project—it boots Uvicorn using defaults that can be overridden with flags (for example, `--port 9000`) or environment variables (`APP_HOST`, `APP_PORT`, `APP_RELOAD`).
+4. Open `http://localhost:8000` and log in via the usual Tesla OAuth flow.
+
+### Simulate Order Changes Locally
+- Point the backend at a formatted fixture by exporting `TESLA_FORMATTED_FIXTURE=fixtures/sample_orders_state1.json` before running the app.
+- Edit that JSON file (or swap it for `fixtures/sample_orders_state2.json`) while the server is running. The `/api/orders` endpoint re-reads the file on every request, so the periodic poller and change banner immediately see the new digest.
+
+Run `poetry run tesla-order-status --help` (or `python -m app --help`) to discover all available options.
+
+### Desktop Notifications
+- The navigation bar now includes a **Desktop alerts** status line with a toggle. Click it to request browser permission and enable native toasts (Windows, macOS, Linux) whenever the poller finds a new snapshot.
+- The feature works on HTTPS or `localhost` in browsers that implement the Web Notifications API (Chrome, Edge, Firefox, Safari). If your browser blocks notifications, re-enable them in the site permissions panel and click the toggle again.
+- You can disable alerts at any time from the same toggle—this only affects your browser; no preference is stored on the server.
 
 ---
 

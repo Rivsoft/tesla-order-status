@@ -27,17 +27,28 @@ All sensitive Tesla tokens remain in the browser (IndexedDB + service worker hea
    ```bash
    pip install poetry
    ```
-2. Install dependencies:
+   Poetry automatically creates and manages a virtual environment for this project—you do **not** need to activate `venv` manually unless you want to (`poetry shell` is available if you do).
+2. Install dependencies (this also builds the virtual environment):
    ```bash
    poetry install
    ```
-3. Run the app with autoreload:
+3. Run the app with autoreload via the bundled CLI (mirrors `npm start` semantics):
    ```bash
-   poetry run uvicorn app.main:app --reload
+   poetry run tesla-order-status --reload
    ```
 4. Open `http://localhost:8000` in your browser.
 
-Use `--port` to change the exposed port. Set environment variables before the command (e.g., `ENABLE_VISIT_METRICS=0 poetry run ...`).
+The CLI supports the same switches as Uvicorn (`--host`, `--port`, `--log-level`, `--workers`) plus `--reload/--no-reload`. You can also drive it with environment variables (`APP_HOST`, `APP_PORT`, `APP_RELOAD`, `APP_WORKERS`, `UVICORN_LOG_LEVEL`). Run `poetry run tesla-order-status --help` or `python -m app --help` for the full reference. Set any FastAPI-specific env vars (e.g., `ENABLE_VISIT_METRICS=0`) before the command as usual.
+
+### Simulating Tesla Order Changes
+To exercise the periodic refresh banner or history diffs without hitting the live Owner API:
+
+1. Export `TESLA_FORMATTED_FIXTURE=fixtures/sample_orders_state1.json` (or point it at your own JSON file containing the "formatted" order objects rendered by the dashboard).
+2. Start the server as usual. The backend now skips the Tesla API and serves whatever is in the fixture file.
+3. Edit the JSON file while the server is running—changing `status`, tasks, delivery windows, etc. Because the file is re-read on every `/` or `/api/orders` request, the digest changes immediately and the change indicator lights up.
+4. To demo a completely different snapshot, swap the env var to `fixtures/sample_orders_state2.json` and restart (or copy/paste one file over the other).
+
+Fixture format: either a list of formatted orders (identical to what `index.html` receives) or a JSON object with an `orders` array. See the sample fixtures under `fixtures/` for inspiration.
 
 ---
 
@@ -85,6 +96,11 @@ Tokens never persist on the server. Logout clears the browser storage and unregi
 - **Client-Side Caching**: The Service Worker caches the dashboard HTML. Visiting `/` serves the cached version instantly without hitting the Tesla API.
 - **Explicit Refresh**: Clicking "Refresh" navigates to `/?refreshed=1`, forcing the Service Worker to bypass the cache, fetch fresh data from the server (triggering a Tesla API call), and update the cache.
 - **History**: Each successful fetch stores the raw payload in `localStorage` along with a timestamp. The `/history` page builds cards from those snapshots, highlighting differences field-by-field.
+
+### Desktop Notifications
+- `app/static/js/change-watcher.js` now owns the Web Notifications handshake. When the user clicks the **Desktop alerts** toggle inside the navigation bar, the script requests permission (`Notification.requestPermission`) and stores the preference in `localStorage` under `teslaOrderNotificationPref`.
+- Poll responses that carry a new digest trigger a native OS toast (title/body derived from the first order in the payload) as long as the preference is `enabled` and `Notification.permission === 'granted'`. Digests are deduplicated via the `teslaOrderNotificationDigest` key so the user is only notified once per snapshot.
+- Because this relies on the Notifications API, it only fires while the dashboard tab is open (foreground or background). Extending this to closed tabs would require wiring Push API endpoints into the service worker, which is intentionally out of scope for now.
 
 ---
 
