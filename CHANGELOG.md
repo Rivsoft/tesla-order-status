@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.3.0 (2025-11-22)
+
+### Features
+
+- Improve history payload comparison for order snapshots
+  ([`0bd3e98`](https://github.com/Rivsoft/tesla-order-status/commit/0bd3e9805f618fd3acba342a7cb79c551bdca52f))
+
+
 ## v1.2.0 (2025-11-22)
 
 ### Features
