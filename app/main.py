@@ -871,4 +871,9 @@ async def history(request: Request):
 
 @app.get("/sw.js")
 async def service_worker() -> FileResponse:
-    return FileResponse(SW_FILE, media_type="application/javascript")
+    response = FileResponse(SW_FILE, media_type="application/javascript")
+    # Ensure Cloudflare/browser never cache the worker so updates propagate immediately
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
