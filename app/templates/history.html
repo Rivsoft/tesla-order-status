@@ -50,6 +50,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const emptyEl = document.getElementById('history-empty');
     const clearBtn = document.getElementById('clear-history');
 
+    if (typeof window !== 'undefined' && typeof window.clearHistoryIndicator === 'function') {
+        window.clearHistoryIndicator();
+    }
+
     const readHistory = () => {
         try {
             return JSON.parse(localStorage.getItem(storageKey)) || [];
@@ -498,6 +502,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     clearBtn?.addEventListener('click', () => {
         localStorage.removeItem(storageKey);
+        if (typeof window !== 'undefined' && typeof window.clearHistoryIndicator === 'function') {
+            window.clearHistoryIndicator();
+        }
         renderHistory();
     });
 

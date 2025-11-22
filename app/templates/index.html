@@ -9,7 +9,7 @@
 <div id="refresh-alert" class="hidden mb-6 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-200 px-4 py-3 flex items-center justify-between" data-refresh-alert>
     <div class="flex items-center gap-3">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        <span>Latest order data loaded successfully.</span>
+        <span data-refresh-message>Latest order data loaded successfully.</span>
     </div>
     <button type="button" aria-label="Dismiss" class="text-emerald-200 hover:text-white" data-refresh-dismiss>&times;</button>
 </div>
@@ -375,7 +375,81 @@
 const ordersDataElement = document.getElementById('orders-data');
 const orderData = ordersDataElement ? JSON.parse(ordersDataElement.textContent) : [];
 
+const refreshAlert = document.getElementById('refresh-alert');
+const refreshMessage = refreshAlert?.querySelector('[data-refresh-message]');
+const refreshDismissBtn = refreshAlert?.querySelector('[data-refresh-dismiss]');
+const TOAST_ACCENTS = {
+    success: {
+        container: ['border-emerald-500/40', 'bg-emerald-500/10', 'text-emerald-200'],
+        button: ['text-emerald-200']
+    },
+    info: {
+        container: ['border-amber-500/40', 'bg-amber-500/10', 'text-amber-200'],
+        button: ['text-amber-200']
+    }
+};
+const ALL_TOAST_CONTAINER_CLASSES = Array.from(new Set(Object.values(TOAST_ACCENTS).flatMap((config) => config.container)));
+const ALL_TOAST_BUTTON_CLASSES = Array.from(new Set(Object.values(TOAST_ACCENTS).flatMap((config) => config.button)));
+let toastHideHandle = null;
+let currentToast = null;
+
+function applyToastAccent(variant = 'success') {
+    if (!refreshAlert) return;
+    const config = TOAST_ACCENTS[variant] || TOAST_ACCENTS.success;
+    refreshAlert.classList.remove(...ALL_TOAST_CONTAINER_CLASSES);
+    refreshAlert.classList.add(...config.container);
+    if (refreshDismissBtn) {
+        refreshDismissBtn.classList.remove(...ALL_TOAST_BUTTON_CLASSES);
+        refreshDismissBtn.classList.add(...config.button);
+    }
+}
+
+function hideToast() {
+    if (!refreshAlert) return;
+    refreshAlert.classList.add('hidden');
+    refreshAlert.setAttribute('aria-hidden', 'true');
+    if (toastHideHandle) {
+        clearTimeout(toastHideHandle);
+        toastHideHandle = null;
+    }
+    if (currentToast?.onHide) {
+        const callback = currentToast.onHide;
+        currentToast = null;
+        callback();
+    } else {
+        currentToast = null;
+    }
+}
+
+function showToast(message, variant = 'success', options = {}) {
+    if (!refreshAlert) return;
+    const { autoHideMs = 5000, onHide } = options;
+    if (toastHideHandle) {
+        clearTimeout(toastHideHandle);
+        toastHideHandle = null;
+    }
+    currentToast = { onHide };
+    if (refreshMessage && message) {
+        refreshMessage.textContent = message;
+    }
+    applyToastAccent(variant);
+    refreshAlert.classList.remove('hidden');
+    refreshAlert.setAttribute('aria-hidden', 'false');
+    if (autoHideMs) {
+        toastHideHandle = window.setTimeout(() => {
+            hideToast();
+        }, autoHideMs);
+    }
+}
+
+function showHistoryUpdateToast() {
+    showToast('New Tesla delivery data detected. History updated.', 'info', { autoHideMs: 6000 });
+}
+
+refreshDismissBtn?.addEventListener('click', hideToast);
+
 const HISTORY_KEY = 'teslaOrderHistory';
+const HISTORY_INDICATOR_KEY = 'teslaHistoryNotification';
 const MAX_HISTORY_ENTRIES = 40;
 
 function readHistoryEntries() {
@@ -401,11 +475,31 @@ function writeHistoryEntries(entries) {
     }
 }
 
+function incrementHistoryIndicator() {
+    if (typeof window === 'undefined' || !window.localStorage) {
+        return;
+    }
+    try {
+        const payload = JSON.parse(window.localStorage.getItem(HISTORY_INDICATOR_KEY)) || {};
+        const nextCount = Math.min(99, (Number(payload.count) || 0) + 1);
+        const nextPayload = {
+            count: nextCount,
+            lastChange: new Date().toISOString()
+        };
+        window.localStorage.setItem(HISTORY_INDICATOR_KEY, JSON.stringify(nextPayload));
+        window.dispatchEvent(new CustomEvent('history-change-indicator'));
+        showHistoryUpdateToast();
+    } catch (err) {
+        console.warn('Unable to update history indicator', err);
+    }
+}
+
 function snapshotOrdersToHistory() {
     if (!Array.isArray(orderData) || !orderData.length) {
         return;
     }
     const history = readHistoryEntries();
+    const hadExistingHistory = history.length > 0;
     const normalizedOrders = JSON.parse(JSON.stringify(orderData));
     const lastEntry = history[history.length - 1];
     const lastOrdersJson = lastEntry ? JSON.stringify(lastEntry.orders) : null;
@@ -422,6 +516,9 @@ function snapshotOrdersToHistory() {
         history.splice(0, history.length - MAX_HISTORY_ENTRIES);
     }
     writeHistoryEntries(history);
+    if (hadExistingHistory) {
+        incrementHistoryIndicator();
+    }
 }
 
 snapshotOrdersToHistory();
@@ -439,10 +536,12 @@ function closeVinModal() {
 }
 
 document.addEventListener('click', (e) => {
-    if (!modalContainer) return;
     if (e.target.matches('[data-refresh-dismiss]')) {
-        e.target.closest('[data-refresh-alert]').remove();
+        hideToast();
+        return;
     }
+
+    if (!modalContainer) return;
 
     if (e.target.closest('[data-vin-trigger]')) {
         const trigger = e.target.closest('[data-vin-trigger]');
@@ -572,34 +671,16 @@ document.querySelectorAll('[data-task-toggle]').forEach(button => {
     });
 });
 
-// Handle refresh alert dismissal
-const refreshAlert = document.getElementById('refresh-alert');
 const urlParams = new URLSearchParams(window.location.search);
 
-if (refreshAlert && urlParams.get('refreshed') === '1') {
-    refreshAlert.classList.remove('hidden');
-    
-    // Auto-dismiss after 5 seconds
-    setTimeout(() => {
-        if (refreshAlert) {
-            refreshAlert.classList.add('hidden');
-            // Clean up URL parameter without reloading
+if (urlParams.get('refreshed') === '1') {
+    showToast('Latest order data loaded successfully.', 'success', {
+        onHide: () => {
             const url = new URL(window.location);
             url.searchParams.delete('refreshed');
             window.history.replaceState({}, '', url);
         }
-    }, 5000);
-
-    // Manual dismiss
-    const dismissBtn = refreshAlert.querySelector('[data-refresh-dismiss]');
-    if (dismissBtn) {
-        dismissBtn.addEventListener('click', () => {
-            refreshAlert.classList.add('hidden');
-            const url = new URL(window.location);
-            url.searchParams.delete('refreshed');
-            window.history.replaceState({}, '', url);
-        });
-    }
+    });
 }
 </script>
 {% endblock %}

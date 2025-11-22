@@ -35,9 +35,18 @@
                 <svg class="w-8 h-8 text-tesla-red" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
                 Tesla Status
             </a>
-            <div class="flex gap-4">
+            <div class="flex gap-4 items-center">
                 <a href="/" class="hover:text-tesla-red transition">Dashboard</a>
-                <a href="/history" class="hover:text-tesla-red transition">History</a>
+                <a href="/history" class="hover:text-tesla-red transition relative flex items-center gap-2" data-history-link>
+                    History
+                    <span
+                        data-history-indicator
+                        class="hidden text-[0.6rem] font-semibold uppercase tracking-wide text-amber-300 bg-amber-500/10 border border-amber-500/40 rounded-full px-2 py-0.5"
+                        aria-live="polite"
+                        aria-hidden="true"
+                        aria-label="New history snapshots"
+                    >New</span>
+                </a>
                 <a href="/refresh" class="bg-tesla-red hover:bg-red-700 text-white px-4 py-1 rounded transition">Refresh</a>
                 <a href="/logout" class="hover:text-tesla-red transition">Logout</a>
             </div>
@@ -52,6 +61,71 @@
         &copy; 2025 Tesla Order Status
     </footer>
     <script type="module" src="/static/js/app-init.js"></script>
+    <script>
+    (function () {
+        const STORAGE_KEY = 'teslaHistoryNotification';
+        const indicator = document.querySelector('[data-history-indicator]');
+        const historyLink = document.querySelector('[data-history-link]');
+        if (typeof window === 'undefined' || !indicator || !historyLink) {
+            return;
+        }
+
+        const applyState = () => {
+            if (!window.localStorage) {
+                indicator.classList.add('hidden');
+                indicator.setAttribute('aria-hidden', 'true');
+                historyLink.classList.remove('text-amber-300', 'animate-pulse');
+                return;
+            }
+
+            let payload = {};
+            try {
+                payload = JSON.parse(window.localStorage.getItem(STORAGE_KEY)) || {};
+            } catch (err) {
+                payload = {};
+            }
+
+            const count = Number(payload.count) || 0;
+            if (count > 0) {
+                indicator.textContent = count > 9 ? '9+' : String(count);
+                indicator.classList.remove('hidden');
+                indicator.removeAttribute('aria-hidden');
+                historyLink.classList.add('text-amber-300', 'animate-pulse');
+            } else {
+                indicator.classList.add('hidden');
+                indicator.setAttribute('aria-hidden', 'true');
+                historyLink.classList.remove('text-amber-300', 'animate-pulse');
+            }
+        };
+
+        const clearState = () => {
+            if (!window.localStorage) {
+                applyState();
+                return;
+            }
+            try {
+                window.localStorage.setItem(
+                    STORAGE_KEY,
+                    JSON.stringify({ count: 0, lastCleared: new Date().toISOString() })
+                );
+            } catch (err) {
+                console.warn('Unable to clear history indicator', err);
+            }
+            applyState();
+        };
+
+        window.addEventListener('storage', (event) => {
+            if (event.key === STORAGE_KEY) {
+                applyState();
+            }
+        });
+
+        window.addEventListener('history-change-indicator', applyState);
+        window.clearHistoryIndicator = clearState;
+
+        applyState();
+    })();
+    </script>
     {% block extra_scripts %}{% endblock %}
 </body>
 </html>
