@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.0.1 (2025-11-22)
+
+### Bug Fixes
+
+- Disable service worker caching
+  ([`23a1055`](https://github.com/Rivsoft/tesla-order-status/commit/23a105551fc06421cf6def0404f3351d6882c357))
+
+### Chores
+
+- **ci**: Remove verbose release logging
+  ([`c16c5e9`](https://github.com/Rivsoft/tesla-order-status/commit/c16c5e90e691d63b1725e95500a98139fc5c23f1))
+
+
 ## v1.0.0 (2025-11-21)
 
 ### Bug Fixes
