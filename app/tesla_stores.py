@@ -107,6 +107,7 @@ class TeslaStore(int, Enum):
     # Netherlands
     NL_TA = (714, "Tilburg-Asteriastraat")
     NL_ZG = (415466, "Zeeland - Goes")
+    NL_UTR = (13654, "Utrecht - Eendrachtlaan")
 
     # Norway
     NO_BOD = (26253, "Bodø")

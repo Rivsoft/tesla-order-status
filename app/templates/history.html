@@ -71,9 +71,33 @@ document.addEventListener('DOMContentLoaded', () => {
         status: 'Status',
         delivery_window: 'Delivery Window',
         delivery_date: 'Delivery Date',
-        location: 'Delivery Location',
         vin: 'VIN',
         eta: 'ETA to Center'
+    };
+
+    const SUMMARY_FIELD_MAP = {
+        delivery_window: 'Delivery Window'
+    };
+
+    const resolveFieldValue = (order, key) => {
+        if (!order) {
+            return undefined;
+        }
+
+        const summaryLabel = SUMMARY_FIELD_MAP[key];
+        if (summaryLabel) {
+            const fromSummary = (order.summary_items || []).find(
+                (item) => item.label === summaryLabel
+            );
+            if (fromSummary) {
+                return fromSummary.value;
+            }
+        }
+
+        if (key === 'delivery_window') {
+            return order.delivery_window;
+        }
+        return order[key];
     };
 
     const flattenObject = (value, prefix = '', acc = {}, depth = 0) => {
@@ -159,8 +183,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const diffs = [];
         Object.entries(FIELD_LABELS).forEach(([key, label]) => {
-            const currentValue = current[key] ?? '—';
-            const previousValue = previous[key] ?? '—';
+            const currentValue = resolveFieldValue(current, key) ?? '—';
+            const previousValue = resolveFieldValue(previous, key) ?? '—';
             if (currentValue !== previousValue) {
                 diffs.push(`${label}: "${previousValue}" → "${currentValue}"`);
             }

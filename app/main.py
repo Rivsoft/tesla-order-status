@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import math
 import os
 import re
 from collections import defaultdict
@@ -340,49 +341,6 @@ def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "currencyCode"
         )
 
-        summary_items = _build_items(
-            [
-                (
-                    "ETA to Delivery Center",
-                    final_payment_data.get("etaToDeliveryCenter") or order.get("eta"),
-                ),
-                (
-                    "Delivery Type",
-                    _describe_delivery_type(
-                        scheduling.get("deliveryType")
-                        or final_payment_data.get("deliveryType")
-                    ),
-                ),
-                (
-                    "Pickup Address",
-                    scheduling.get("deliveryAddressTitle")
-                    or (final_payment_data.get("deliveryAddress") or {}).get("address1")
-                    or final_payment_data.get("pickupLocation"),
-                ),
-                (
-                    "Payment Status",
-                    _describe_payment_status(
-                        final_payment_task.get("status")
-                        if isinstance(final_payment_task, dict)
-                        else None
-                    ),
-                ),
-                (
-                    "Customer Amount Due",
-                    _format_currency(
-                        (
-                            final_payment_task.get("amountDue")
-                            if isinstance(final_payment_task, dict)
-                            else None
-                        ),
-                        currency_code,
-                    ),
-                ),
-                ("Order Placed", _format_timestamp(order_info.get("orderPlacedDate"))),
-                ("Order Booked", _format_timestamp(order_info.get("orderBookedDate"))),
-            ]
-        )
-
         image_urls = monitor.get_vehicle_image_urls(
             order["modelCode"], order.get("mktOptions", "")
         )
@@ -390,6 +348,69 @@ def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
         vin = order.get("vin")
         vin_details = vin_decoder.decode(vin) if vin else None
+
+        mileage_unit = (
+            order_info.get("vehicleOdometerType")
+            or order_info.get("vehicleMileageUnit")
+            or order_info.get("vehicleOdometerUnit")
+            or order_info.get("odometerUnit")
+        )
+        mileage_value = (
+            order_info.get("vehicleOdometer")
+            or order_info.get("vehicleMileage")
+            or order_info.get("odometer")
+        )
+        mileage_display = (
+            _format_vehicle_mileage(mileage_value, mileage_unit) or "Unknown"
+        )
+
+        summary_pairs = [
+            (
+                "ETA to Delivery Center",
+                final_payment_data.get("etaToDeliveryCenter") or order.get("eta"),
+            ),
+            (
+                "Delivery Type",
+                _describe_delivery_type(
+                    scheduling.get("deliveryType")
+                    or final_payment_data.get("deliveryType")
+                ),
+            ),
+            (
+                "Delivery Window",
+                scheduling.get("deliveryWindowDisplay")
+                or scheduling.get("apptDateTimeAddressStr"),
+            ),
+            (
+                "Pickup Address",
+                scheduling.get("deliveryAddressTitle")
+                or (final_payment_data.get("deliveryAddress") or {}).get("address1")
+                or final_payment_data.get("pickupLocation"),
+            ),
+            (
+                "Payment Status",
+                _describe_payment_status(
+                    final_payment_task.get("status")
+                    if isinstance(final_payment_task, dict)
+                    else None
+                ),
+            ),
+            (
+                "Customer Amount Due",
+                _format_currency(
+                    (
+                        final_payment_task.get("amountDue")
+                        if isinstance(final_payment_task, dict)
+                        else None
+                    ),
+                    currency_code,
+                ),
+            ),
+            ("Order Placed", _format_timestamp(order_info.get("orderPlacedDate"))),
+            ("Order Booked", _format_timestamp(order_info.get("orderBookedDate"))),
+            ("Vehicle Odometer", mileage_display),
+        ]
+        summary_items = _build_items(summary_pairs)
 
         formatted_orders.append(
             {
@@ -401,19 +422,47 @@ def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "delivery_date": scheduling.get(
                     "apptDateTimeAddressStr", "Not Scheduled"
                 ),
-                "delivery_window": scheduling.get("deliveryWindowDisplay", "TBD"),
-                "location": monitor.get_store_label(
-                    order_info.get("vehicleRoutingLocation", 0)
-                ),
                 "eta": final_payment_data.get("etaToDeliveryCenter", "Unknown"),
                 "image_urls": image_urls,
                 "tasks": tasks_list,
                 "summary_items": summary_items,
+                "vehicle_odometer": mileage_display,
                 "insights": build_order_insights(order_data),
                 "raw_payload": order_data,
             }
         )
     return formatted_orders
+
+
+def _format_vehicle_mileage(value: Any, unit: Optional[Any]) -> Optional[str]:
+    if value in (None, "", [], {}):
+        return None
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    token = text.replace(",", " ").split()[0]
+    try:
+        numeric = float(token)
+        if not math.isfinite(numeric):
+            raise ValueError
+    except (ValueError, TypeError):
+        return text
+
+    if abs(numeric - round(numeric)) < 0.01:
+        numeric = round(numeric)
+        formatted_number = f"{numeric:,d}"
+    else:
+        formatted_number = f"{numeric:,.1f}"
+    unit_token = str(unit or "mi").strip().lower()
+    if unit_token in {"km", "kilometer", "kilometers", "kilometre", "kilometres"}:
+        suffix = "km"
+    elif unit_token in {"mi", "mile", "miles"}:
+        suffix = "mi"
+    else:
+        suffix = unit.strip() if isinstance(unit, str) and unit.strip() else "mi"
+    return f"{formatted_number} {suffix}"
 
 
 def _format_currency(amount: Any, currency: Optional[str]) -> Optional[str]:

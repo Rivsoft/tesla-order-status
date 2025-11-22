@@ -17,6 +17,20 @@ from pathlib import Path
 IMAGE = os.environ.get("SUPER_LINTER_IMAGE", "ghcr.io/github/super-linter:slim-latest")
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
 PYTHON_VERSION = os.environ.get("SUPER_LINTER_PYTHON", "3.11")
+CHANGELOG_FILTER = r".*/?CHANGELOG\.md$"
+
+
+def ensure_changelog_ignored(env: dict[str, str]) -> None:
+    """Make sure CHANGELOG.md is skipped by Super Linter."""
+
+    configured = env.get("FILTER_REGEX_EXCLUDE", "")
+    if "CHANGELOG" in configured:
+        return
+
+    if configured:
+        env["FILTER_REGEX_EXCLUDE"] = f"{configured}|({CHANGELOG_FILTER})"
+    else:
+        env["FILTER_REGEX_EXCLUDE"] = CHANGELOG_FILTER
 
 
 def ensure_docker() -> None:
@@ -47,29 +61,26 @@ def main() -> None:
     env.setdefault("VALIDATE_ALL_CODEBASE", "true")
     env.setdefault("DEFAULT_BRANCH", DEFAULT_BRANCH)
     env.setdefault("PYTHON_VERSION", PYTHON_VERSION)
+    ensure_changelog_ignored(env)
 
-    cmd = [
-        "docker",
-        "run",
-        "--rm",
-        "-e",
-        f"RUN_LOCAL={env['RUN_LOCAL']}",
-        "-e",
-        f"VALIDATE_ALL_CODEBASE={env['VALIDATE_ALL_CODEBASE']}",
-        "-e",
-        f"DEFAULT_BRANCH={env['DEFAULT_BRANCH']}",
-        "-e",
-        f"PYTHON_VERSION={env['PYTHON_VERSION']}",
-        "-v",
-        f"{docker_path}:/tmp/lint",
-        "-w",
-        "/tmp/lint",
-        IMAGE,
+    cmd = ["docker", "run", "--rm"]
+
+    docker_env_vars = [
+        "RUN_LOCAL",
+        "VALIDATE_ALL_CODEBASE",
+        "DEFAULT_BRANCH",
+        "PYTHON_VERSION",
+        "FILTER_REGEX_EXCLUDE",
     ]
 
-    # Only pass GITHUB_TOKEN if the user provided one
-    if token := env.get("GITHUB_TOKEN"):
-        cmd[4:4] = ["-e", f"GITHUB_TOKEN={token}"]
+    if env.get("GITHUB_TOKEN"):
+        docker_env_vars.append("GITHUB_TOKEN")
+
+    for var in docker_env_vars:
+        if value := env.get(var):
+            cmd.extend(["-e", f"{var}={value}"])
+
+    cmd.extend(["-v", f"{docker_path}:/tmp/lint", "-w", "/tmp/lint", IMAGE])
 
     print("Running:", " ".join(cmd))
     subprocess.run(cmd, check=True)
