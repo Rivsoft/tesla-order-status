@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.2.0 (2025-11-22)
+
+### Features
+
+- Add history notification indicator and toast messages for updates
+  ([`9bc7f02`](https://github.com/Rivsoft/tesla-order-status/commit/9bc7f02dcd56fae4fdc8f178385ccdae2680db24))
+
+
 ## v1.1.1 (2025-11-22)
 
 
