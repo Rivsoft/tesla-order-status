@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.4.0 (2025-11-23)
+
+### Features
+
+- Add favicon and logo SVGs for improved branding
+  ([`d5575fc`](https://github.com/Rivsoft/tesla-order-status/commit/d5575fce6fbf6a8a53c699e25e94d3c530f108d6))
+
+
 ## v1.3.0 (2025-11-22)
 
 ### Features
