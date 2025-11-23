@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Tesla order favicon">
+  <defs>
+    <linearGradient id="fav-bg" x1="25%" y1="0%" x2="75%" y2="100%">
+      <stop offset="0%" stop-color="#18191f" />
+      <stop offset="100%" stop-color="#08090c" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="44" height="44" rx="11" fill="url(#fav-bg)" stroke="#292c34" stroke-width="2" />
+  <rect x="12" y="8" width="24" height="32" rx="3" fill="#13141a" stroke="#373a44" stroke-width="1.5" />
+  <rect x="12" y="8" width="24" height="7" rx="3" rx-bottom="0" fill="#e82127" />
+  <path d="M16 11.5h16" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.85" />
+  <path d="M16 19h16" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" />
+  <path d="M16 24h16" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" />
+  <path d="M16 29h10" stroke="#6b7280" stroke-width="1.5" stroke-linecap="round" />
+  <circle cx="33" cy="33" r="9" fill="#10b981" stroke="#13141a" stroke-width="1.5" />
+  <path d="M29 33l3 3 5-5" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

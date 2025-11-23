@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 72" role="img" aria-labelledby="title desc">
+  <title id="title">Tesla order status logo</title>
+  <desc id="desc">Professional order document icon with Tesla branding and confirmation check.</desc>
+  <defs>
+    <linearGradient id="bg" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#1a1b22" />
+      <stop offset="100%" stop-color="#0a0b0e" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f87171" />
+      <stop offset="100%" stop-color="#e82127" />
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="68" height="68" rx="16" fill="url(#bg)" stroke="#2a2d36" stroke-width="2" />
+  <rect x="18" y="12" width="36" height="48" rx="4" fill="#15161c" stroke="#3a3d48" stroke-width="2" />
+  <rect x="18" y="12" width="36" height="10" rx="4" rx-bottom="0" fill="#e82127" />
+  <path d="M24 17h24" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-opacity="0.9" />
+  <path d="M24 28h24" stroke="#71717a" stroke-width="2" stroke-linecap="round" />
+  <path d="M24 34h24" stroke="#71717a" stroke-width="2" stroke-linecap="round" />
+  <path d="M24 40h16" stroke="#71717a" stroke-width="2" stroke-linecap="round" />
+  <circle cx="48" cy="48" r="14" fill="#10b981" />
+  <circle cx="48" cy="48" r="14" fill="#10b981" stroke="#15161c" stroke-width="2" />
+  <path d="M42 48l4 4 8-8" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

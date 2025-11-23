@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tesla Order Status</title>
+    <link rel="icon" type="image/svg+xml" href="/static/img/tesla-order-favicon.svg">
+    <link rel="alternate icon" href="/static/img/tesla-order-favicon.svg">
+    <link rel="apple-touch-icon" href="/static/img/tesla-order-favicon.svg">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -31,8 +34,14 @@
 <body class="min-h-screen flex flex-col">
     <nav class="bg-zinc-900 border-b border-zinc-800 p-4">
         <div class="max-w-7xl mx-auto w-full flex justify-between items-center px-2">
-            <a href="/" class="text-2xl font-bold text-white flex items-center gap-2">
-                <svg class="w-8 h-8 text-tesla-red" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+            <a href="/" class="text-2xl font-bold text-white flex items-center gap-3">
+                <img
+                    src="/static/img/tesla-order-logo.svg"
+                    alt="Tesla order status logo"
+                    class="h-9 w-9"
+                    decoding="async"
+                    loading="eager"
+                >
                 Tesla Status
             </a>
             <div class="flex gap-4 items-center">
