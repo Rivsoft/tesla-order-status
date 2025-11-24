@@ -341,7 +341,7 @@ def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "currencyCode"
         )
 
-        image_urls = monitor.get_vehicle_image_urls(
+        image_assets = monitor.get_vehicle_image_urls(
             order["modelCode"], order.get("mktOptions", "")
         )
         tasks_list = monitor.parse_tasks(tasks)
@@ -365,6 +365,8 @@ def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         )
 
         summary_pairs = [
+            ("License Plate", order_info.get("licensePlateNumber")),
+            ("Vehicle Odometer", mileage_display),
             (
                 "ETA to Delivery Center",
                 final_payment_data.get("etaToDeliveryCenter") or order.get("eta"),
@@ -408,7 +410,6 @@ def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             ),
             ("Order Placed", _format_timestamp(order_info.get("orderPlacedDate"))),
             ("Order Booked", _format_timestamp(order_info.get("orderBookedDate"))),
-            ("Vehicle Odometer", mileage_display),
         ]
         summary_items = _build_items(summary_pairs)
 
@@ -423,7 +424,7 @@ def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                     "apptDateTimeAddressStr", "Not Scheduled"
                 ),
                 "eta": final_payment_data.get("etaToDeliveryCenter", "Unknown"),
-                "image_urls": image_urls,
+                "image_urls": image_assets,
                 "tasks": tasks_list,
                 "summary_items": summary_items,
                 "vehicle_odometer": mileage_display,

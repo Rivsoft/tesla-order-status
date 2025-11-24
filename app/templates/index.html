@@ -31,29 +31,42 @@
                 </span>
             </div>
 
-            <div class="relative h-64 bg-gradient-to-b from-zinc-800 to-zinc-900 flex items-center justify-center overflow-hidden group"
-                 data-slider
-                 {% if order.image_urls %}data-images='{{ order.image_urls | tojson | safe }}'{% endif %}>
-                {% if order.image_urls %}
-                <img src="{{ order.image_urls[0] }}" alt="Tesla Vehicle" data-slider-image class="w-full h-full object-contain transform transition duration-700 ease-in-out">
+              {% set has_images = order.image_urls|length > 0 %}
+              <div class="relative h-80 w-full bg-gradient-to-b from-zinc-800 to-zinc-900 flex items-center justify-center overflow-hidden group"
+                  data-slider
+                  {% if order.image_urls %}data-images='{{ order.image_urls | tojson | safe }}'{% endif %}>
+                {% if has_images %}
+                 <img src="{{ order.image_urls[0].url }}"
+                     alt="{{ order.image_urls[0].label or 'Tesla Vehicle' }}"
+                     data-slider-image
+                     loading="lazy"
+                     decoding="async"
+                     fetchpriority="high"
+                     class="w-full h-full object-cover transition duration-700 ease-in-out">
+                <span class="absolute top-4 left-4 text-xs bg-black/60 text-white px-3 py-1 rounded-full" data-slider-label>
+                    {{ order.image_urls[0].label or order.image_urls[0].view or 'Vehicle' }}
+                </span>
+                <div class="text-zinc-500 text-sm hidden" data-slider-fallback>Vehicle preview unavailable</div>
                 {% else %}
-                <div class="text-zinc-500 text-sm">Vehicle preview unavailable</div>
+                <img src="" alt="Tesla Vehicle" data-slider-image class="hidden w-full h-full object-cover">
+                <span class="absolute top-4 left-4 text-xs bg-black/60 text-white px-3 py-1 rounded-full hidden" data-slider-label>Vehicle</span>
+                <div class="text-zinc-500 text-sm" data-slider-fallback>Vehicle preview unavailable</div>
                 {% endif %}
 
-                {% if order.image_urls|length > 1 %}
-                <button type="button" aria-label="Previous angle" data-slider-prev class="absolute left-4 top-1/2 -translate-y-1/2 bg-zinc-900/70 hover:bg-zinc-900 text-white rounded-full p-2 shadow-lg">
+                <button type="button" aria-label="Previous angle" data-slider-prev class="absolute left-4 top-1/2 -translate-y-1/2 bg-zinc-900/70 hover:bg-zinc-900 text-white rounded-full p-2 shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity {% if not has_images or order.image_urls|length <= 1 %}hidden{% endif %}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
                 </button>
-                <button type="button" aria-label="Next angle" data-slider-next class="absolute right-4 top-1/2 -translate-y-1/2 bg-zinc-900/70 hover:bg-zinc-900 text-white rounded-full p-2 shadow-lg">
+                <button type="button" aria-label="Next angle" data-slider-next class="absolute right-4 top-1/2 -translate-y-1/2 bg-zinc-900/70 hover:bg-zinc-900 text-white rounded-full p-2 shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-visible:opacity-100 focus-visible:pointer-events-auto transition-opacity {% if not has_images or order.image_urls|length <= 1 %}hidden{% endif %}">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
                 </button>
-                <span class="absolute top-4 right-4 text-xs bg-black/60 text-white px-2 py-1 rounded-full" data-slider-counter>1 / {{ order.image_urls|length }}</span>
-                <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                    {% for _ in order.image_urls %}
+                <span class="absolute top-4 right-4 text-xs bg-black/60 text-white px-2 py-1 rounded-full {% if not has_images %}hidden{% endif %}" data-slider-counter>
+                    {% if has_images %}1 / {{ order.image_urls|length }}{% else %}0 / 0{% endif %}
+                </span>
+                <div class="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 {% if order.image_urls|length <= 1 %}hidden{% endif %}" data-slider-dots>
+                    {% for _ in order.image_urls or [] %}
                     <button type="button" data-slider-dot="{{ loop.index0 }}" class="w-2 h-2 rounded-full transition-opacity {% if loop.first %}opacity-100 bg-white{% else %}opacity-40 bg-white{% endif %}"></button>
                     {% endfor %}
                 </div>
-                {% endif %}
             </div>
 
             <div class="p-6 grid grid-cols-2 gap-6 bg-zinc-800/50">
@@ -598,29 +611,44 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-let startX = 0;
-let currentTranslate = 0;
-let previousTranslate = 0;
-let currentIndex = 0;
-let animationID = 0;
-let isDragging = false;
-const carousel = document.querySelector('[data-slider]');
-const slides = document.querySelectorAll('[data-slider]');
-
-function setImage(index) {
-    const slider = event?.currentTarget?.closest('[data-slider]') || document.activeElement?.closest('[data-slider]');
-    const images = JSON.parse(slider.dataset.images || '[]');
-    const image = slider.querySelector('[data-slider-image]');
-    const counter = slider.querySelector('[data-slider-counter]');
-    const dots = slider.querySelectorAll('[data-slider-dot]');
-
-    if (!images.length) {
-        return;
+function normalizeImageData(entry) {
+    if (entry && typeof entry === 'object') {
+        return {
+            url: entry.url || '',
+            label: entry.label || '',
+            view: entry.view || ''
+        };
     }
+    return { url: entry || '', label: '', view: '' };
+}
+
+function formatImageLabel(data) {
+    return data.label || data.view || '';
+}
+
+function updateSliderFrame(slider, images, index) {
+    if (!images.length || !slider) return;
 
     const clampedIndex = Math.max(0, Math.min(index, images.length - 1));
-    image.src = images[clampedIndex];
-    if (counter) counter.textContent = `${clampedIndex + 1} / ${images.length}`;
+    const imageElement = slider.querySelector('[data-slider-image]');
+    const counter = slider.querySelector('[data-slider-counter]');
+    const dots = slider.querySelectorAll('[data-slider-dot]');
+    const labelChip = slider.querySelector('[data-slider-label]');
+    const imageData = normalizeImageData(images[clampedIndex]);
+
+    if (imageElement && imageData.url) {
+        imageElement.src = imageData.url;
+    }
+    if (imageElement) {
+        imageElement.alt = imageData.label || 'Tesla Vehicle';
+    }
+    if (counter) {
+        counter.textContent = `${clampedIndex + 1} / ${images.length}`;
+    }
+    if (labelChip) {
+        const labelText = formatImageLabel(imageData);
+        labelChip.textContent = labelText || 'Vehicle';
+    }
     dots.forEach(dot => {
         const isActive = dot.dataset.sliderDot == clampedIndex;
         dot.classList.toggle('opacity-100', isActive);
@@ -628,53 +656,126 @@ function setImage(index) {
     });
 }
 
+function toggleSliderControls(slider, count) {
+    const prev = slider.querySelector('[data-slider-prev]');
+    const next = slider.querySelector('[data-slider-next]');
+    const counter = slider.querySelector('[data-slider-counter]');
+    const dotsContainer = slider.querySelector('[data-slider-dots]');
+
+    [prev, next].forEach(control => {
+        if (control) control.classList.toggle('hidden', count <= 1);
+    });
+    if (dotsContainer) {
+        dotsContainer.classList.toggle('hidden', count <= 1);
+    }
+    if (counter) {
+        counter.classList.toggle('hidden', count === 0);
+    }
+}
+
+function rebuildDots(slider, count) {
+    const dotsContainer = slider.querySelector('[data-slider-dots]');
+    if (!dotsContainer) return;
+    dotsContainer.innerHTML = '';
+
+    if (count <= 1) {
+        dotsContainer.classList.add('hidden');
+        return;
+    }
+
+    for (let i = 0; i < count; i += 1) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.sliderDot = String(i);
+        button.className = 'w-2 h-2 rounded-full transition-opacity opacity-40 bg-white';
+        dotsContainer.appendChild(button);
+    }
+}
+
+function prepareSlider(slider) {
+    const rawImages = JSON.parse(slider.dataset.images || '[]').map(normalizeImageData);
+    if (!rawImages.length) {
+        toggleSliderControls(slider, 0);
+        const fallback = slider.querySelector('[data-slider-fallback]');
+        const imageElement = slider.querySelector('[data-slider-image]');
+        fallback?.classList.remove('hidden');
+        imageElement?.classList.add('hidden');
+        return;
+    }
+
+    const verifiedSlots = new Array(rawImages.length).fill(null);
+    let pending = rawImages.length;
+
+    const finalize = () => {
+        if (pending !== 0) return;
+        const orderedImages = verifiedSlots.filter(Boolean);
+        if (orderedImages.length) {
+            slider.dataset.images = JSON.stringify(orderedImages);
+            rebuildDots(slider, orderedImages.length);
+            updateSliderFrame(slider, orderedImages, 0);
+            toggleSliderControls(slider, orderedImages.length);
+            const fallback = slider.querySelector('[data-slider-fallback]');
+            fallback?.classList.add('hidden');
+            slider.querySelector('[data-slider-image]')?.classList.remove('hidden');
+        } else {
+            slider.dataset.images = '[]';
+            toggleSliderControls(slider, 0);
+            const fallback = slider.querySelector('[data-slider-fallback]');
+            fallback?.classList.remove('hidden');
+            slider.querySelector('[data-slider-image]')?.classList.add('hidden');
+        }
+    };
+
+    rawImages.forEach((imageData, index) => {
+        if (!imageData.url) {
+            pending -= 1;
+            finalize();
+            return;
+        }
+
+        const tester = new Image();
+        tester.decoding = 'async';
+        tester.loading = 'eager';
+        tester.onload = () => {
+            verifiedSlots[index] = imageData;
+            pending -= 1;
+            finalize();
+        };
+        tester.onerror = () => {
+            pending -= 1;
+            finalize();
+        };
+        tester.src = imageData.url;
+    });
+}
+
 function handleSliderClick(event) {
     const slider = event.currentTarget;
     const dataset = slider.dataset;
-    const images = JSON.parse(dataset.images || '[]');
+    const images = JSON.parse(dataset.images || '[]').map(normalizeImageData);
     if (!images.length) return;
+
+    const dotTarget = event.target.closest('[data-slider-dot]');
+    if (dotTarget) {
+        const index = parseInt(dotTarget.dataset.sliderDot, 10);
+        if (Number.isNaN(index)) return;
+        updateSliderFrame(slider, images, index);
+        return;
+    }
 
     const action = event.target.closest('[data-slider-prev]') ? -1 : event.target.closest('[data-slider-next]') ? 1 : 0;
     if (!action) return;
 
-    const image = slider.querySelector('[data-slider-image]');
     const counter = slider.querySelector('[data-slider-counter]');
-    const dots = slider.querySelectorAll('[data-slider-dot]');
     let currentIndex = parseInt(counter?.textContent?.split('/')[0]) - 1 || 0;
 
     currentIndex = (currentIndex + action + images.length) % images.length;
-    image.src = images[currentIndex];
-    if (counter) counter.textContent = `${currentIndex + 1} / ${images.length}`;
-    dots.forEach(dot => {
-        const isActive = dot.dataset.sliderDot == currentIndex;
-        dot.classList.toggle('opacity-100', isActive);
-        dot.classList.toggle('opacity-40', !isActive);
-    });
+    updateSliderFrame(slider, images, currentIndex);
 }
 
 document.querySelectorAll('[data-slider]').forEach(slider => {
     slider.addEventListener('click', handleSliderClick);
-
-    slider.querySelectorAll('[data-slider-dot]').forEach(dot => {
-        dot.addEventListener('click', event => {
-            const index = parseInt(event.currentTarget.dataset.sliderDot);
-            const slider = event.currentTarget.closest('[data-slider]');
-            const images = JSON.parse(slider.dataset.images || '[]');
-            if (!images.length) return;
-
-            const image = slider.querySelector('[data-slider-image]');
-            const counter = slider.querySelector('[data-slider-counter]');
-            const dots = slider.querySelectorAll('[data-slider-dot]');
-
-            image.src = images[index];
-            if (counter) counter.textContent = `${index + 1} / ${images.length}`;
-            dots.forEach(dot => {
-                const isActive = dot.dataset.sliderDot == index;
-                dot.classList.toggle('opacity-100', isActive);
-                dot.classList.toggle('opacity-40', !isActive);
-            });
-        });
-    });
+    prepareSlider(slider);
 });
 
 document.querySelectorAll('[data-task-toggle]').forEach(button => {

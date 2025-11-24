@@ -27,6 +27,26 @@ APP_VERSION = "9.99.9-9999"
 
 
 class TeslaOrderMonitor:
+    _VIEW_LIBRARY: Dict[str, str] = {
+        "STUD_3QTR": "Exterior",
+        "SIDE": "Side Profile",
+        "REAR34": "Rear Quarter",
+        "STUD_SEAT": "Front Interior",
+        "INTERIOR_ROW2": "Rear Interior",
+        "INTERIOR_DETAIL": "Interior Detail",
+        "AERIAL": "Top Down",
+        "STUD_TRUNK_OPEN": "Cargo Area",
+        "STUD_DETAIL": "Design Detail",
+        "STUD_SIDE_TRAILERHITCH": "Towing View",
+        "RIMCLOSEUP": "Rim Close-Up",
+    }
+
+    _DEFAULT_VIEW_SEQUENCE: List[str] = list(_VIEW_LIBRARY.keys())
+
+    _VIEW_OVERRIDES: Dict[str, Dict[str, str]] = {
+        "RIMCLOSEUP": {"crop": "0,0,80,0", "size": "800"},
+    }
+
     def __init__(self):
         pass
 
@@ -191,29 +211,105 @@ class TeslaOrderMonitor:
 
     def get_vehicle_image_urls(
         self, model_code: str, options: str, views: Optional[List[str]] = None
-    ) -> List[str]:
-        """Return a list of Tesla configurator image URLs covering multiple angles."""
-        base_url = "https://static-assets.tesla.com/configurator/compositor"
-        option_string = options or ""
-        view_sequence = views or ["STUD_3QTR", "STUD_SIDE", "STUD_REAR"]
+    ) -> List[Dict[str, str]]:
+        """Return configurator image metadata (url, view code, label)."""
+        model_token = self._normalize_model_code(model_code)
+        if not model_token:
+            return []
 
-        image_urls = []
-        for view in view_sequence:
-            params = {
-                "model": model_code,
-                "view": view,
-                "size": "1200",
-                "options": option_string,
-                "bkba_opt": "1",
-                "crop": "0,0,0,0",
-            }
-            image_urls.append(f"{base_url}?{urllib.parse.urlencode(params)}")
-        return image_urls
+        formatted_options = self._format_option_string(options)
+        option_string = formatted_options or (options or "")
+        base_url = "https://static-assets.tesla.com/configurator/compositor"
+
+        if views:
+            requested_views = []
+            for view in views:
+                if not view:
+                    continue
+                requested_views.append(view.strip().upper())
+        else:
+            requested_views = self._DEFAULT_VIEW_SEQUENCE
+
+        image_metadata: List[Dict[str, str]] = []
+        for view_code in requested_views:
+            label = self._VIEW_LIBRARY.get(
+                view_code, view_code.replace("_", " ").title()
+            )
+            params = self._build_compositor_params(
+                model_token, option_string, view_code
+            )
+            if not params:
+                continue
+            query = urllib.parse.urlencode(params)
+            image_metadata.append(
+                {
+                    "url": f"{base_url}?{query}",
+                    "view": view_code,
+                    "label": label,
+                }
+            )
+        return image_metadata
 
     def get_vehicle_image_url(self, model_code: str, options: str) -> str:
         """Backward compatible helper that returns the primary (front three-quarter) image."""
         images = self.get_vehicle_image_urls(model_code, options)
-        return images[0] if images else ""
+        return images[0]["url"] if images else ""
+
+    def _normalize_model_code(self, model_code: str) -> Optional[str]:
+        if not model_code:
+            return None
+        normalized = model_code.strip()
+        token = normalized.lower()
+        mapping = {
+            "ms": "ms",
+            "model s": "ms",
+            "s": "ms",
+            "m3": "m3",
+            "model 3": "m3",
+            "3": "m3",
+            "mx": "mx",
+            "model x": "mx",
+            "x": "mx",
+            "my": "my",
+            "model y": "my",
+            "y": "my",
+            "ct": "ct",
+            "cybertruck": "ct",
+        }
+        return mapping.get(token, normalized)
+
+    def _format_option_string(self, options: str) -> str:
+        if not options:
+            return ""
+        tokens = [
+            opt.strip() for opt in options.split(",") if opt and opt.strip()
+        ]
+        formatted = []
+        for token in tokens:
+            if token.startswith("$"):
+                formatted.append(token)
+            else:
+                formatted.append(f"${token}")
+        return ",".join(formatted)
+
+    def _build_compositor_params(
+        self, model_token: str, option_string: str, view_code: str
+    ) -> Dict[str, str]:
+        if not model_token:
+            return {}
+        base_params = {
+            "model": model_token,
+            "view": view_code,
+            "options": option_string,
+            "bkba_opt": "1",
+            "context": "design_studio_2",
+            "size": "1024",
+            "crop": "1150,647,390,180",
+            "hide_car_shadow": "0",
+        }
+        overrides = self._VIEW_OVERRIDES.get(view_code, {})
+        base_params.update(overrides)
+        return {k: v for k, v in base_params.items() if v not in (None, "")}
 
     def parse_tasks(self, tasks_data: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Parses the tasks dictionary into a sorted list of steps."""
