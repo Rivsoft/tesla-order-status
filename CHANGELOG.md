@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.7.0 (2025-11-24)
+
+### Features
+
+- Update order progress header to improve readability
+  ([`1a4489f`](https://github.com/Rivsoft/tesla-order-status/commit/1a4489fcdc05066f75177c185f3017ec69e71280))
+
+
 ## v1.6.0 (2025-11-24)
 
 ### Features
