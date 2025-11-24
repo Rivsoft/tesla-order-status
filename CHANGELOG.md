@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.5.0 (2025-11-24)
+
+### Chores
+
+- Fix linting issues
+  ([`4ed7c16`](https://github.com/Rivsoft/tesla-order-status/commit/4ed7c1613c6605d73e153893e94506f39fa695d4))
+
+### Features
+
+- Enhance vehicle image handling and display in order details
+  ([`8206615`](https://github.com/Rivsoft/tesla-order-status/commit/82066153862f19fb6c794f2323bb15a68c21875b))
+
+
 ## v1.4.0 (2025-11-23)
 
 ### Features
