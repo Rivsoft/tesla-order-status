@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.6.0 (2025-11-24)
+
+### Features
+
+- Enhance order progress tracking and UI updates
+  ([`2a30e61`](https://github.com/Rivsoft/tesla-order-status/commit/2a30e610fa088450b68ad2d6c485c528b62910df))
+
+
 ## v1.5.0 (2025-11-24)
 
 ### Chores
