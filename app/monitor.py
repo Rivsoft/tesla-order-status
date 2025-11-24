@@ -281,9 +281,7 @@ class TeslaOrderMonitor:
     def _format_option_string(self, options: str) -> str:
         if not options:
             return ""
-        tokens = [
-            opt.strip() for opt in options.split(",") if opt and opt.strip()
-        ]
+        tokens = [opt.strip() for opt in options.split(",") if opt and opt.strip()]
         formatted = []
         for token in tokens:
             if token.startswith("$"):
