@@ -58,10 +58,24 @@ async def flush_visit_metrics() -> None:
 
 MARKET_OPTION_CATALOG: Dict[str, Dict[str, str]] = {
     # Vehicle / drive / manufacturing
-    "MDL3": {"category": "Vehicle", "name": "Model 3 platform"},
-    "MDLY": {"category": "Vehicle", "name": "Model Y platform"},
-    "MDLS": {"category": "Vehicle", "name": "Model S platform"},
-    "MDLX": {"category": "Vehicle", "name": "Model X platform"},
+    "MDL3": {"category": "Vehicle", "name": "Model 3 Platform"},
+    "MDLY": {"category": "Vehicle", "name": "Model Y Platform"},
+    "MDLS": {"category": "Vehicle", "name": "Model S Platform"},
+    "MDLX": {"category": "Vehicle", "name": "Model X Platform"},
+    "MTS03": {"category": "Manufacturing", "name": "Model S Long Range"},
+    "MTS07": {"category": "Manufacturing", "name": "Model S Long Range Plus"},
+    "MTS11": {"category": "Manufacturing", "name": "Model S Plaid"},
+    "MTX03": {"category": "Manufacturing", "name": "Model X Long Range"},
+    "MTX04": {"category": "Manufacturing", "name": "Model X Performance"},
+    "MTX07": {"category": "Manufacturing", "name": "Model X Long Range Plus"},
+    "MTX11": {"category": "Manufacturing", "name": "Model X Plaid"},
+    "MT300": {"category": "Manufacturing", "name": "Model 3 Standard Range RWD"},
+    "MT301": {"category": "Manufacturing", "name": "Model 3 Standard Range Plus RWD"},
+    "MT302": {"category": "Manufacturing", "name": "Model 3 Long Range RWD"},
+    "MT303": {"category": "Manufacturing", "name": "Model 3 Long Range AWD"},
+    "MT304": {"category": "Manufacturing", "name": "Model 3 Long Range Performance"},
+    "MT323": {"category": "Manufacturing", "name": "Model 3 Long Range AWD (refresh)"},
+    "MT353": {"category": "Manufacturing", "name": "Model 3 Performance Highland"},
     "ADPX0": {"category": "Drive", "name": "Rear-wheel drive single motor"},
     "ADPX1": {"category": "Drive", "name": "Long Range dual motor"},
     "ADPX2": {"category": "Drive", "name": "Performance dual motor"},
@@ -70,7 +84,19 @@ MARKET_OPTION_CATALOG: Dict[str, Dict[str, str]] = {
     "P3WS": {"category": "Performance", "name": "Performance Upgrade Package"},
     "MT322": {"category": "Manufacturing", "name": "Model year 2022 Q2 build"},
     "MT337": {"category": "Manufacturing", "name": "Model year 2023 Q4 build"},
-    "MTY62": {"category": "Manufacturing", "name": "Model Y Long Range AWD"},
+    "MTY01": {"category": "Manufacturing", "name": "Model Y Standard Range RWD"},
+    "MTY02": {"category": "Manufacturing", "name": "Model Y Long Range RWD"},
+    "MTY03": {"category": "Manufacturing", "name": "Model Y Long Range AWD"},
+    "MTY04": {"category": "Manufacturing", "name": "Model Y Performance AWD"},
+    "MTY05": {"category": "Manufacturing", "name": "Model Y Performance"},
+    "MTY47": {
+        "category": "Manufacturing",
+        "name": "Model Y LR AWD (LG 5L pack)",
+    },
+    "MTY62": {
+        "category": "Manufacturing",
+        "name": "Model Y LR AWD (LG 5M pack)",
+    },
     "TM00": {"category": "Towing", "name": "Towing package deleted"},
     "TOW1": {"category": "Towing", "name": "Factory tow package"},
     # Batteries / powertrain
@@ -229,6 +255,17 @@ ORDER_SUBSTATUS_DESCRIPTIONS: Dict[str, str] = {
     "AWAITING_PAYMENT": "Awaiting payment",
     "DOCUMENTS_PENDING": "Paperwork pending",
 }
+
+MODEL_CODE_LABELS: Dict[str, str] = {
+    "M3": "Model 3",
+    "MY": "Model Y",
+    "MS": "Model S",
+    "MX": "Model X",
+    "CT": "Cybertruck",
+    "SR": "Roadster",
+}
+
+OPTION_CODE_SPLITTER = re.compile(r"[,;|\\s]+")
 
 FINANCE_PRODUCT_TYPE_DESCRIPTIONS: Dict[str, str] = {
     "RETAIL_LOAN": "Retail loan",
@@ -413,10 +450,15 @@ def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         ]
         summary_items = _build_items(summary_pairs)
 
+        model_code = (order.get("modelCode") or order.get("model") or "").upper()
+        model_name, model_full_name = _derive_model_labels(order, details)
+
         formatted_orders.append(
             {
                 "rn": order["referenceNumber"],
-                "model": order["modelCode"].upper(),
+                "model": model_code or "M",
+                "model_name": model_name,
+                "model_full_name": model_full_name,
                 "vin": vin or "N/A",
                 "vin_details": vin_details,
                 "status": order.get("orderStatus", "unknown"),
@@ -428,6 +470,7 @@ def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "tasks": tasks_list,
                 "summary_items": summary_items,
                 "vehicle_odometer": mileage_display,
+                "progress": build_order_progress(order_data),
                 "insights": build_order_insights(order_data),
                 "raw_payload": order_data,
             }
@@ -511,6 +554,101 @@ def _format_rich_value(value: str) -> str:
             f"{text}</a>"
         )
     return text
+
+
+def _normalize_option_code(value: Any) -> Optional[str]:
+    if value in (None, ""):
+        return None
+    text = str(value).strip().upper()
+    if not text:
+        return None
+    if text.startswith("$"):
+        text = text[1:]
+    return text or None
+
+
+def _split_option_codes(blob: Any) -> List[str]:
+    if not blob:
+        return []
+    if isinstance(blob, str):
+        candidates = OPTION_CODE_SPLITTER.split(blob)
+    elif isinstance(blob, (list, tuple, set)):
+        candidates = list(blob)
+    elif isinstance(blob, dict):
+        candidates = list(blob.values())
+    else:
+        return []
+    codes: List[str] = []
+    for candidate in candidates:
+        normalized = _normalize_option_code(candidate)
+        if normalized:
+            codes.append(normalized)
+    return codes
+
+
+def _lookup_trim_label(order: Dict[str, Any], details: Dict[str, Any]) -> Optional[str]:
+    order_details = details.get("orderDetails", {}) or {}
+    for candidate in (
+        order_details.get("trimName"),
+        order_details.get("modelDescription"),
+    ):
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip()
+
+    trim_code = _normalize_option_code(
+        order_details.get("trimCode") or order.get("trimCode")
+    )
+    if trim_code:
+        catalog_entry = MARKET_OPTION_CATALOG.get(trim_code)
+        if catalog_entry:
+            return catalog_entry["name"]
+
+    option_codes = _split_option_codes(order.get("mktOptions"))
+    for code in option_codes:
+        catalog_entry = MARKET_OPTION_CATALOG.get(code)
+        if not catalog_entry:
+            continue
+        if catalog_entry.get("category") == "Manufacturing" and code.startswith("MT"):
+            return catalog_entry["name"]
+    for code in option_codes:
+        catalog_entry = MARKET_OPTION_CATALOG.get(code)
+        if catalog_entry and catalog_entry.get("category") in {
+            "Manufacturing",
+            "Vehicle",
+        }:
+            return catalog_entry["name"]
+    return None
+
+
+def _describe_model_code(value: Any) -> str:
+    token = str(value or "").strip().upper()
+    if not token:
+        return "Tesla"
+    if token in MODEL_CODE_LABELS:
+        return MODEL_CODE_LABELS[token]
+    if token.startswith("MODEL"):
+        return token.title()
+    if token.startswith("M") and len(token) > 1:
+        suffix = token[1:].strip()
+        if suffix:
+            return f"Model {suffix}".strip()
+    return token.title()
+
+
+def _derive_model_labels(
+    order: Dict[str, Any], details: Dict[str, Any]
+) -> tuple[str, str]:
+    model_code = (order.get("modelCode") or order.get("model") or "").upper()
+    base_label = _describe_model_code(model_code)
+    trim_label = _lookup_trim_label(order, details)
+    if trim_label:
+        if trim_label.lower().startswith(base_label.lower()):
+            full_label = trim_label
+        else:
+            full_label = f"{base_label} {trim_label}".strip()
+    else:
+        full_label = base_label
+    return base_label, full_label
 
 
 def describe_market_options(option_blob: Any) -> List[Dict[str, str]]:
@@ -829,6 +967,241 @@ def build_order_insights(order_entry: Dict[str, Any]) -> Dict[str, Any]:
         "registration": registration_items,
         "metadata": metadata_items,
         "blockers": blockers,
+    }
+
+
+def build_order_progress(order_entry: Dict[str, Any]) -> Dict[str, Any]:
+    order = order_entry.get("order", {}) or {}
+    details = order_entry.get("details", {}) or {}
+    tasks = details.get("tasks", {}) or {}
+    scheduling = tasks.get("scheduling", {}) or {}
+    registration = tasks.get("registration", {}) or {}
+    registration_details = registration.get("orderDetails", {}) or {}
+    final_payment = tasks.get("finalPayment", {}) or {}
+    final_payment_data = (
+        final_payment.get("data", {}) if isinstance(final_payment, dict) else {}
+    )
+
+    order_status = str(order.get("orderStatus") or "").upper()
+
+    def format_timestamp(value: Any) -> Optional[str]:
+        return _format_timestamp(value) if value not in (None, "") else None
+
+    def scrub_text(value: Any) -> Optional[str]:
+        if value in (None, ""):
+            return None
+        text = str(value).strip()
+        return text or None
+
+    def parse_numeric(value: Any) -> Optional[float]:
+        if value in (None, ""):
+            return None
+        if isinstance(value, (int, float)):
+            try:
+                numeric = float(value)
+            except (ValueError, TypeError):
+                return None
+            return numeric if math.isfinite(numeric) else None
+        text = str(value).strip()
+        if not text:
+            return None
+        cleaned = text.replace(",", "")
+        match = re.search(r"-?\d+(?:\.\d+)?", cleaned)
+        if not match:
+            return None
+        try:
+            numeric = float(match.group(0))
+            return numeric if math.isfinite(numeric) else None
+        except ValueError:
+            return None
+
+    def parse_iso_datetime(value: Any) -> Optional[datetime]:
+        if value in (None, ""):
+            return None
+        try:
+            raw = str(value).strip()
+            if raw.endswith("Z"):
+                raw = raw[:-1] + "+00:00"
+            return datetime.fromisoformat(raw)
+        except Exception:  # pragma: no cover - defensive parse
+            return None
+
+    def normalize_code_token(value: Any) -> Optional[str]:
+        if value in (None, ""):
+            return None
+        token = re.sub(r"[^A-Z0-9]+", "_", str(value).strip().upper())
+        token = token.strip("_")
+        return token or None
+
+    odometer_raw = (
+        registration_details.get("vehicleOdometer")
+        or details.get("vehicleOdometer")
+        or order.get("vehicleOdometer")
+    )
+    odometer_unit = (
+        registration_details.get("vehicleOdometerType")
+        or details.get("vehicleOdometerType")
+        or order.get("vehicleOdometerType")
+    )
+    odometer_numeric = parse_numeric(odometer_raw)
+    odometer_display = _format_vehicle_mileage(odometer_raw, odometer_unit)
+
+    order_placed_raw = registration_details.get("orderPlacedDate") or order.get(
+        "orderPlacedDate"
+    )
+    vin_value = scrub_text(order.get("vin"))
+    vin_assigned_raw = (
+        order.get("vinAssignmentDate")
+        or order.get("vinMatchedDate")
+        or registration_details.get("vinAssignmentDate")
+    )
+    production_timestamp = (
+        order.get("vehicleProductionDate")
+        or order.get("vehicleBuildDate")
+        or order.get("buildCompletionDate")
+    )
+    eta_raw = final_payment_data.get("etaToDeliveryCenter") or order.get("eta")
+    ready_window_primary = scrub_text(scheduling.get("apptDateTimeAddressStr"))
+    ready_datetime = parse_iso_datetime(ready_window_primary)
+    ready_window_fallback = scrub_text(
+        scheduling.get("deliveryWindowDisplay") or scheduling.get("deliveryWindow")
+    )
+    if ready_window_primary:
+        ready_meta_label = "Appointment"
+        ready_meta_value = ready_window_primary
+    elif ready_window_fallback:
+        ready_meta_label = "Window"
+        ready_meta_value = ready_window_fallback
+    else:
+        ready_meta_label = None
+        ready_meta_value = None
+    ready_timestamp = (ready_datetime.isoformat() if ready_datetime else None) or (
+        scheduling.get("appointmentDateUtc")
+        or scheduling.get("appointmentDate")
+        or scheduling.get("apptDateTime")
+    )
+    delivered_flag = "DELIVERED" in order_status
+    delivered_timestamp = (
+        order.get("deliveryDate")
+        or order.get("deliveredOn")
+        or order.get("deliveredDate")
+    )
+
+    production_complete = (
+        odometer_numeric is not None and abs(odometer_numeric - 30) > 1e-6
+    )
+    ready_flag = ready_datetime is not None
+    registration_status_raw = registration_details.get(
+        "registrationStatus"
+    ) or registration.get("status")
+    registration_status_normalized = normalize_code_token(registration_status_raw)
+    registration_status_label = (
+        _describe_registration_status(registration_status_raw)
+        or scrub_text(registration_status_raw)
+        or "Unknown"
+    )
+    registration_completion_codes = {
+        "COMPLETED",
+        "COMPLETE",
+        "APPROVED",
+        "SUBMITTED",
+    }
+    registration_complete = (
+        registration_status_normalized in registration_completion_codes
+    )
+    registration_timestamp_raw = (
+        registration_details.get("registrationCompletionDate")
+        or registration_details.get("registrationStartDate")
+        or registration.get("startedOn")
+    )
+
+    stages: List[Dict[str, Any]] = [
+        {
+            "key": "order_placed",
+            "label": "Order Placed",
+            "description": "Reservation submitted and RN assigned.",
+            "completed": bool(order_placed_raw),
+            "timestamp": format_timestamp(order_placed_raw),
+        },
+        {
+            "key": "vin_assigned",
+            "label": "VIN Assigned",
+            "description": "Tesla matched a specific vehicle to your RN.",
+            "completed": bool(vin_value),
+            "timestamp": format_timestamp(vin_assigned_raw),
+            "meta_label": "VIN",
+            "meta_value": vin_value,
+        },
+        {
+            "key": "production",
+            "label": "In Production",
+            "description": "Factory scheduling or build in progress.",
+            "completed": production_complete,
+            "timestamp": format_timestamp(production_timestamp),
+            "meta_label": "Odometer",
+            "meta_value": odometer_display or "Awaiting update",
+        },
+        {
+            "key": "in_transit",
+            "label": "In Transit",
+            "description": "Vehicle departed the factory toward your delivery hub.",
+            "completed": bool(eta_raw),
+            "timestamp": format_timestamp(eta_raw),
+            "meta_label": "ETA",
+            "meta_value": format_timestamp(eta_raw),
+        },
+        {
+            "key": "registration",
+            "label": "Registration",
+            "description": "Paperwork with your DMV or agency to secure plates.",
+            "completed": registration_complete,
+            "timestamp": format_timestamp(registration_timestamp_raw),
+            "meta_label": "Status",
+            "meta_value": registration_status_label,
+        },
+        {
+            "key": "ready",
+            "label": "Ready For Delivery",
+            "description": "Delivery center appointment or pickup window confirmed.",
+            "completed": ready_flag,
+            "timestamp": format_timestamp(ready_timestamp),
+            "meta_label": ready_meta_label,
+            "meta_value": ready_meta_value,
+        },
+        {
+            "key": "delivered",
+            "label": "Delivered",
+            "description": "Vehicle handed off and paperwork closed.",
+            "completed": delivered_flag,
+            "timestamp": format_timestamp(delivered_timestamp),
+        },
+    ]
+
+    first_incomplete = next(
+        (idx for idx, stage in enumerate(stages) if not stage["completed"]),
+        len(stages),
+    )
+    for idx, stage in enumerate(stages):
+        if stage["completed"]:
+            stage["state"] = "complete"
+            stage["state_label"] = "Complete"
+        elif idx == first_incomplete:
+            stage["state"] = "active"
+            stage["state_label"] = "In Progress"
+        else:
+            stage["state"] = "upcoming"
+            stage["state_label"] = "Pending"
+
+    completed_count = sum(1 for stage in stages if stage["completed"])
+    total = len(stages)
+    percent = int(round((completed_count / total) * 100)) if total else 0
+
+    return {
+        "stages": stages,
+        "completed": completed_count,
+        "total": total,
+        "percent": percent,
+        "active_index": min(first_incomplete, total - 1) if total else 0,
     }
 
 
