@@ -267,6 +267,39 @@ MODEL_CODE_LABELS: Dict[str, str] = {
 
 OPTION_CODE_SPLITTER = re.compile(r"[,;|\\s]+")
 
+WINDOW_DATE_PATTERN = re.compile(
+    r"(?:(?P<day_first>\d{1,2})(?:st|nd|rd|th)?\s+(?P<month_first>[A-Za-z]{3,})|"
+    r"(?P<month_second>[A-Za-z]{3,})\s+(?P<day_second>\d{1,2})(?:st|nd|rd|th)?)",
+    re.IGNORECASE,
+)
+
+MONTH_ABBREVIATIONS = {
+    "JAN": "Jan",
+    "JANUARY": "Jan",
+    "FEB": "Feb",
+    "FEBRUARY": "Feb",
+    "MAR": "Mar",
+    "MARCH": "Mar",
+    "APR": "Apr",
+    "APRIL": "Apr",
+    "MAY": "May",
+    "JUN": "Jun",
+    "JUNE": "Jun",
+    "JUL": "Jul",
+    "JULY": "Jul",
+    "AUG": "Aug",
+    "AUGUST": "Aug",
+    "SEP": "Sep",
+    "SEPT": "Sep",
+    "SEPTEMBER": "Sep",
+    "OCT": "Oct",
+    "OCTOBER": "Oct",
+    "NOV": "Nov",
+    "NOVEMBER": "Nov",
+    "DEC": "Dec",
+    "DECEMBER": "Dec",
+}
+
 FINANCE_PRODUCT_TYPE_DESCRIPTIONS: Dict[str, str] = {
     "RETAIL_LOAN": "Retail loan",
     "LEASE": "Lease",
@@ -362,6 +395,8 @@ def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         tasks = details.get("tasks", {}) or {}
         scheduling = tasks.get("scheduling", {}) or {}
         registration_task = tasks.get("registration", {}) or {}
+        delivery_details_task = tasks.get("deliveryDetails", {}) or {}
+        delivery_reg_data = delivery_details_task.get("regData", {}) or {}
         order_info = registration_task.get("orderDetails", {}) or {}
         final_payment_task = tasks.get("finalPayment", {}) or {}
         final_payment_data = (
@@ -401,12 +436,20 @@ def _format_orders(order_entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             _format_vehicle_mileage(mileage_value, mileage_unit) or "Unknown"
         )
 
+        eta_delivery_raw = final_payment_data.get("etaToDeliveryCenter") or order.get(
+            "eta"
+        )
+        license_plate_value = (
+            delivery_reg_data.get("reggieLicensePlate")
+            or registration_task.get("reggieLicensePlate")
+            or order_info.get("licensePlateNumber")
+        )
         summary_pairs = [
-            ("License Plate", order_info.get("licensePlateNumber")),
+            ("License Plate", license_plate_value),
             ("Vehicle Odometer", mileage_display),
             (
                 "ETA to Delivery Center",
-                final_payment_data.get("etaToDeliveryCenter") or order.get("eta"),
+                _format_date_only(eta_delivery_raw) if eta_delivery_raw else None,
             ),
             (
                 "Delivery Type",
@@ -498,7 +541,8 @@ def _format_vehicle_mileage(value: Any, unit: Optional[Any]) -> Optional[str]:
         numeric = round(numeric)
         formatted_number = f"{numeric:,d}"
     else:
-        formatted_number = f"{numeric:,.1f}"
+        formatted_number = f"{numeric:,.2f}"
+        
     unit_token = str(unit or "mi").strip().lower()
     if unit_token in {"km", "kilometer", "kilometers", "kilometre", "kilometres"}:
         suffix = "km"
@@ -530,6 +574,66 @@ def _format_timestamp(value: Any) -> Optional[str]:
         return datetime.fromisoformat(raw).strftime("%d %b %Y %H:%M")
     except Exception:  # pragma: no cover - fallback
         return str(value)
+
+
+def _format_date_only(value: Any) -> Optional[str]:
+    formatted = _format_timestamp(value)
+    if not formatted:
+        return None
+    tokens = formatted.split()
+    if len(tokens) >= 3:
+        return " ".join(tokens[:3])
+    return formatted
+
+
+def _abbreviate_month_token(token: str) -> Optional[str]:
+    cleaned = re.sub(r"[^A-Z]", "", token.upper()) if token else ""
+    if not cleaned:
+        return None
+    if cleaned in MONTH_ABBREVIATIONS:
+        return MONTH_ABBREVIATIONS[cleaned]
+    prefix = cleaned[:3]
+    if prefix in MONTH_ABBREVIATIONS:
+        return MONTH_ABBREVIATIONS[prefix]
+    return cleaned.title()[:3]
+
+
+def _shorten_delivery_window_display(value: Any) -> Optional[str]:
+    if value in (None, ""):
+        return None
+    text = " ".join(str(value).split())
+    if not text:
+        return None
+    matches: List[tuple[str, str]] = []
+    for match in WINDOW_DATE_PATTERN.finditer(text):
+        if match.group("day_first"):
+            day = match.group("day_first")
+            month = match.group("month_first")
+        else:
+            day = match.group("day_second")
+            month = match.group("month_second")
+        month_abbrev = _abbreviate_month_token(month)
+        if not month_abbrev:
+            continue
+        try:
+            day_value = int(day)
+        except ValueError:
+            continue
+        matches.append((month_abbrev, day_value))
+        if len(matches) >= 2:
+            break
+    if len(matches) < 2:
+        return None
+    (start_month, start_day), (end_month, end_day) = matches[:2]
+
+    def format_day_month(month: str, day: int) -> str:
+        return f"{day:02d} {month}"
+
+    start_display = format_day_month(start_month, start_day)
+    end_display = format_day_month(end_month, end_day)
+    if start_display == end_display:
+        return start_display
+    return f"{start_display} - {end_display}"
 
 
 def _build_items(pairs: List[tuple[str, Any]]) -> List[Dict[str, str]]:
@@ -977,15 +1081,21 @@ def build_order_progress(order_entry: Dict[str, Any]) -> Dict[str, Any]:
     scheduling = tasks.get("scheduling", {}) or {}
     registration = tasks.get("registration", {}) or {}
     registration_details = registration.get("orderDetails", {}) or {}
+    delivery_details = tasks.get("deliveryDetails", {}) or {}
+    delivery_reg_data = delivery_details.get("regData", {}) or {}
     final_payment = tasks.get("finalPayment", {}) or {}
     final_payment_data = (
         final_payment.get("data", {}) if isinstance(final_payment, dict) else {}
     )
 
     order_status = str(order.get("orderStatus") or "").upper()
+    today = datetime.utcnow().date()
 
     def format_timestamp(value: Any) -> Optional[str]:
         return _format_timestamp(value) if value not in (None, "") else None
+
+    def format_date_only(value: Any) -> Optional[str]:
+        return _format_date_only(value) if value not in (None, "") else None
 
     def scrub_text(value: Any) -> Optional[str]:
         if value in (None, ""):
@@ -1060,18 +1170,27 @@ def build_order_progress(order_entry: Dict[str, Any]) -> Dict[str, Any]:
         or order.get("vehicleBuildDate")
         or order.get("buildCompletionDate")
     )
+
     eta_raw = final_payment_data.get("etaToDeliveryCenter") or order.get("eta")
+    eta_display = format_date_only(eta_raw)
+    eta_datetime = parse_iso_datetime(eta_raw)
+    eta_date = eta_datetime.date() if eta_datetime else None
+    in_transit_completed = eta_date is not None and eta_date <= today
+    in_transit_has_eta = bool(eta_display)
+    eta_labeled = f"ETA: {eta_display}" if eta_display else None
+    eta_timestamp = eta_labeled if eta_display else None
     ready_window_primary = scrub_text(scheduling.get("apptDateTimeAddressStr"))
     ready_datetime = parse_iso_datetime(ready_window_primary)
     ready_window_fallback = scrub_text(
         scheduling.get("deliveryWindowDisplay") or scheduling.get("deliveryWindow")
     )
+    ready_window_display = _shorten_delivery_window_display(ready_window_fallback)
     if ready_window_primary:
         ready_meta_label = "Appointment"
         ready_meta_value = ready_window_primary
     elif ready_window_fallback:
         ready_meta_label = "Window"
-        ready_meta_value = ready_window_fallback
+        ready_meta_value = ready_window_display or ready_window_fallback
     else:
         ready_meta_label = None
         ready_meta_value = None
@@ -1099,6 +1218,11 @@ def build_order_progress(order_entry: Dict[str, Any]) -> Dict[str, Any]:
         _describe_registration_status(registration_status_raw)
         or scrub_text(registration_status_raw)
         or "Unknown"
+    )
+    reggie_license_plate = scrub_text(
+        delivery_reg_data.get("reggieLicensePlate")
+        or registration.get("reggieLicensePlate")
+        or registration_details.get("reggieLicensePlate")
     )
     registration_completion_codes = {
         "COMPLETED",
@@ -1145,10 +1269,11 @@ def build_order_progress(order_entry: Dict[str, Any]) -> Dict[str, Any]:
             "key": "in_transit",
             "label": "In Transit",
             "description": "Vehicle departed the factory toward your delivery hub.",
-            "completed": bool(eta_raw),
-            "timestamp": format_timestamp(eta_raw),
+            "completed": in_transit_completed,
+            "timestamp": eta_timestamp,
             "meta_label": "ETA",
-            "meta_value": format_timestamp(eta_raw),
+            "meta_value": eta_labeled,
+            "has_eta": in_transit_has_eta,
         },
         {
             "key": "registration",
@@ -1156,8 +1281,8 @@ def build_order_progress(order_entry: Dict[str, Any]) -> Dict[str, Any]:
             "description": "Paperwork with your DMV or agency to secure plates.",
             "completed": registration_complete,
             "timestamp": format_timestamp(registration_timestamp_raw),
-            "meta_label": "Status",
-            "meta_value": registration_status_label,
+            "meta_label": "Plate" if reggie_license_plate else "Status",
+            "meta_value": reggie_license_plate or registration_status_label,
         },
         {
             "key": "ready",
@@ -1191,6 +1316,10 @@ def build_order_progress(order_entry: Dict[str, Any]) -> Dict[str, Any]:
         else:
             stage["state"] = "upcoming"
             stage["state_label"] = "Pending"
+        if stage["key"] == "in_transit" and not stage["completed"]:
+            if not stage.get("has_eta"):
+                stage["state"] = "upcoming"
+                stage["state_label"] = "Pending"
 
     completed_count = sum(1 for stage in stages if stage["completed"])
     total = len(stages)
