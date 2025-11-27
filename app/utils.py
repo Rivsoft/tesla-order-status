@@ -401,9 +401,7 @@ def extract_delivery_blockers(readiness: Dict[str, Any]) -> List[Dict[str, str]]
         if not isinstance(gate, dict) or not gate.get("isBlocker"):
             continue
         gate_label = describe_delivery_gate(gate.get("gate", "UNKNOWN")) or "Unknown"
-        owner_label = (
-            describe_code(gate.get("actionOwner", "Unknown"), {}) or "Unknown"
-        )
+        owner_label = describe_code(gate.get("actionOwner", "Unknown"), {}) or "Unknown"
         blockers.append(
             {
                 "gate": gate_label,
@@ -446,4 +444,3 @@ def unpack_order_data(order_entry: Dict[str, Any]) -> Dict[str, Any]:
         "final_payment_data": final_payment_data,
         "delivery_details": tasks.get("deliveryDetails", {}) or {},
     }
-

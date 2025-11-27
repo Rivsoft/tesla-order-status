@@ -41,10 +41,10 @@ You are an expert Python developer specializing in FastAPI, Docker, and clean co
 - `scripts/`: Helper scripts (e.g., `run_super_linter.py`).
 
 ## Best Practices
-1.  **Refactoring**: When modifying existing files, look for opportunities to extract logic into `utils.py` to avoid code duplication (JSCPD is active).
-2.  **Configuration**: Do not hardcode secrets or configuration. Use environment variables.
-3.  **Error Handling**: Use FastAPI's exception handling mechanisms. Return appropriate HTTP status codes.
-4.  **Testing/Validation**:
+1. **Refactoring**: When modifying existing files, look for opportunities to extract logic into `utils.py` to avoid code duplication (JSCPD is active).
+2. **Configuration**: Do not hardcode secrets or configuration. Use environment variables.
+3. **Error Handling**: Use FastAPI's exception handling mechanisms. Return appropriate HTTP status codes.
+4. **Testing/Validation**:
     - Before finalizing code, ensure it would pass the project's linter suite.
     - Run `poetry run python scripts/run_super_linter.py` to validate changes if asked.
 
