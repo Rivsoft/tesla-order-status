@@ -2,6 +2,27 @@
 
 <!-- version list -->
 
+## v1.8.0 (2025-11-27)
+
+### Chores
+
+- Add comprehensive GitHub Copilot instructions for project development
+  ([`1c49531`](https://github.com/Rivsoft/tesla-order-status/commit/1c495311c2d77d1dfcf5d7e1968c4a482708cbef))
+
+- Update GitHub Copilot instructions and clean up utility functions
+  ([`039053a`](https://github.com/Rivsoft/tesla-order-status/commit/039053a13e79d2101b1f3735ad9d5e90393b5bdf))
+
+### Features
+
+- Enhance delivery details formatting and improve ETA display logic
+  ([`f5cb1a3`](https://github.com/Rivsoft/tesla-order-status/commit/f5cb1a3b1fec982b95a74f8d18cb49f9103d1f55))
+
+### Refactoring
+
+- Add constants and utility functions for vehicle options and delivery processes
+  ([`0a1d405`](https://github.com/Rivsoft/tesla-order-status/commit/0a1d4054ef16356565fd4b091ac8770a6ebcc887))
+
+
 ## v1.7.0 (2025-11-24)
 
 ### Features

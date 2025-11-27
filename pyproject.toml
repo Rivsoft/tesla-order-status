@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tesla-order-status"
-version = "1.7.0"
+version = "1.8.0"
 description = "A web application to track Tesla order status"
 authors = ["Mariano Rivera <rivsoft@gmail.com>"]
 readme = "README.md"
