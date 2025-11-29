@@ -7,16 +7,39 @@
     <div class="animate-pulse text-sm text-zinc-500">Please keep this tab open.</div>
 </div>
 <script type="module">
-import { saveBundle } from '/static/js/token-storage.js';
+import { saveBundle, loadBundle } from '/static/js/token-storage.js';
 import { registerServiceWorker } from '/static/js/sw-register.js';
 
 const tokens = {{ tokens | tojson }};
 
 async function bootstrap() {
     try {
+        // Save tokens to IndexedDB
         await saveBundle(tokens);
+
+        // Register and wait for service worker
         await registerServiceWorker();
-        window.location.href = '/?refreshed=1';
+
+        // Wait for service worker to be ready and controlling
+        if ('serviceWorker' in navigator) {
+            await navigator.serviceWorker.ready;
+
+            // If no controller yet, wait for it
+            if (!navigator.serviceWorker.controller) {
+                await new Promise((resolve) => {
+                    navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true });
+                });
+            }
+        }
+
+        // Verify tokens were saved correctly
+        const savedBundle = await loadBundle();
+        if (!savedBundle) {
+            throw new Error('Tokens were not saved to IndexedDB');
+        }
+
+        // Navigate to dashboard
+        window.location.replace('/?refreshed=1');
     } catch (error) {
         console.error('Unable to persist Tesla tokens', error);
         const msg = document.createElement('p');
