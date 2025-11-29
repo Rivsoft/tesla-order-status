@@ -3,7 +3,7 @@ import { loadBundle, saveBundle, clearBundle } from './static/js/token-storage.j
 const TOKEN_HEADER = 'x-tesla-bundle'
 const CLEAR_HEADER = 'x-tesla-clear'
 const PUBLIC_PATHS = new Set(['/login', '/callback', '/logout'])
-const CACHE_NAME = 'tesla-order-status-v1'
+const CACHE_NAME = 'tesla-order-status-v2'
 
 self.addEventListener('install', () => {
   self.skipWaiting()

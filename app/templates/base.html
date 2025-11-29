@@ -56,6 +56,14 @@
                         aria-label="New history snapshots"
                     >New</span>
                 </a>
+                <div class="flex items-center gap-2" data-auto-refresh-container>
+                    <label class="relative inline-flex items-center cursor-pointer" title="Auto-refresh every 30 minutes">
+                        <input type="checkbox" id="auto-refresh-toggle" class="sr-only peer" data-auto-refresh-toggle>
+                        <div class="w-9 h-5 bg-zinc-700 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-tesla-red/50 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-tesla-red"></div>
+                        <span class="ms-2 text-sm text-zinc-400 hidden sm:inline">Auto</span>
+                    </label>
+                    <span data-auto-refresh-status class="hidden text-[0.6rem] font-semibold uppercase tracking-wide text-emerald-300 bg-emerald-500/10 border border-emerald-500/40 rounded-full px-2 py-0.5" aria-live="polite"></span>
+                </div>
                 <a href="/refresh" class="bg-tesla-red hover:bg-red-700 text-white px-4 py-1 rounded transition">Refresh</a>
                 <a href="/logout" class="hover:text-tesla-red transition">Logout</a>
             </div>
@@ -133,6 +141,266 @@
         window.clearHistoryIndicator = clearState;
 
         applyState();
+    })();
+    </script>
+    <script>
+    (function () {
+        const AUTO_REFRESH_KEY = 'teslaAutoRefresh';
+        const AUTO_REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+        const toggle = document.querySelector('[data-auto-refresh-toggle]');
+        const statusBadge = document.querySelector('[data-auto-refresh-status]');
+
+        // Skip auto-refresh on auth pages to avoid interfering with login flow
+        const skipPaths = ['/login', '/callback', '/logout'];
+        const currentPath = window.location.pathname;
+        const isAuthPage = skipPaths.some(p => currentPath.startsWith(p));
+
+        if (!toggle || typeof window === 'undefined') {
+            return;
+        }
+
+        // Don't run auto-refresh logic on auth pages
+        if (isAuthPage) {
+            return;
+        }
+
+        let refreshIntervalId = null;
+        let countdownIntervalId = null;
+        let nextRefreshTime = null;
+
+        function getStoredPreference() {
+            try {
+                const stored = JSON.parse(window.localStorage.getItem(AUTO_REFRESH_KEY));
+                return stored?.enabled === true;
+            } catch (err) {
+                return false;
+            }
+        }
+
+        function setStoredPreference(enabled) {
+            try {
+                window.localStorage.setItem(AUTO_REFRESH_KEY, JSON.stringify({
+                    enabled: enabled,
+                    updatedAt: new Date().toISOString()
+                }));
+            } catch (err) {
+                console.warn('Unable to save auto-refresh preference', err);
+            }
+        }
+
+        function requestNotificationPermission() {
+            if (!('Notification' in window)) {
+                return Promise.resolve('unsupported');
+            }
+            if (Notification.permission === 'granted') {
+                return Promise.resolve('granted');
+            }
+            if (Notification.permission === 'denied') {
+                return Promise.resolve('denied');
+            }
+            return Notification.requestPermission();
+        }
+
+        function sendNotification(title, body, options = {}) {
+            if (!('Notification' in window) || Notification.permission !== 'granted') {
+                return null;
+            }
+            try {
+                const notification = new Notification(title, {
+                    body: body,
+                    icon: '/static/img/tesla-order-favicon.svg',
+                    badge: '/static/img/tesla-order-favicon.svg',
+                    tag: 'tesla-order-update',
+                    requireInteraction: false,
+                    ...options
+                });
+                notification.onclick = () => {
+                    window.focus();
+                    notification.close();
+                };
+                return notification;
+            } catch (err) {
+                console.warn('Unable to send notification', err);
+                return null;
+            }
+        }
+
+        function updateStatusBadge(text) {
+            if (!statusBadge) return;
+            if (text) {
+                statusBadge.textContent = text;
+                statusBadge.classList.remove('hidden');
+            } else {
+                statusBadge.classList.add('hidden');
+            }
+        }
+
+        function formatTimeRemaining(ms) {
+            const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function startCountdownDisplay() {
+            if (countdownIntervalId) {
+                clearInterval(countdownIntervalId);
+            }
+            countdownIntervalId = setInterval(() => {
+                if (!nextRefreshTime) {
+                    updateStatusBadge('');
+                    return;
+                }
+                const remaining = nextRefreshTime - Date.now();
+                if (remaining <= 0) {
+                    updateStatusBadge('Refreshing...');
+                } else {
+                    updateStatusBadge(formatTimeRemaining(remaining));
+                }
+            }, 1000);
+        }
+
+        function stopCountdownDisplay() {
+            if (countdownIntervalId) {
+                clearInterval(countdownIntervalId);
+                countdownIntervalId = null;
+            }
+            updateStatusBadge('');
+        }
+
+        async function performAutoRefresh() {
+            const currentOrdersJson = window.localStorage.getItem('teslaOrderHistory');
+            let previousSnapshot = null;
+            try {
+                const history = JSON.parse(currentOrdersJson) || [];
+                previousSnapshot = history.length > 0 ? history[history.length - 1] : null;
+            } catch (err) {
+                previousSnapshot = null;
+            }
+
+            updateStatusBadge('Refreshing...');
+
+            try {
+                const response = await fetch('/?refreshed=1', {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'text/html'
+                    }
+                });
+
+                if (!response.ok) {
+                    nextRefreshTime = Date.now() + AUTO_REFRESH_INTERVAL_MS;
+                    return;
+                }
+
+                const html = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const ordersScript = doc.getElementById('orders-data');
+                let newOrders = [];
+
+                if (ordersScript) {
+                    try {
+                        newOrders = JSON.parse(ordersScript.textContent);
+                    } catch (err) {
+                        // Unable to parse order data
+                    }
+                }
+
+                const hasChanges = detectChanges(previousSnapshot, newOrders);
+
+                if (hasChanges && newOrders.length > 0) {
+                    sendNotification(
+                        'Tesla Order Update',
+                        'Your Tesla order status has changed. Click to view details.',
+                        { requireInteraction: true }
+                    );
+                    window.location.href = '/?refreshed=1';
+                } else {
+                    nextRefreshTime = Date.now() + AUTO_REFRESH_INTERVAL_MS;
+                }
+            } catch (err) {
+                nextRefreshTime = Date.now() + AUTO_REFRESH_INTERVAL_MS;
+            }
+        }
+
+        function detectChanges(previousSnapshot, newOrders) {
+            if (!previousSnapshot || !previousSnapshot.orders) {
+                return false;
+            }
+
+            const normalize = (orders) => {
+                if (!Array.isArray(orders)) return '';
+                return JSON.stringify(orders);
+            };
+
+            return normalize(previousSnapshot.orders) !== normalize(newOrders);
+        }
+
+        function startAutoRefresh() {
+            stopAutoRefresh();
+            nextRefreshTime = Date.now() + AUTO_REFRESH_INTERVAL_MS;
+            startCountdownDisplay();
+
+            refreshIntervalId = setInterval(() => {
+                performAutoRefresh();
+            }, AUTO_REFRESH_INTERVAL_MS);
+        }
+
+        function stopAutoRefresh() {
+            if (refreshIntervalId) {
+                clearInterval(refreshIntervalId);
+                refreshIntervalId = null;
+            }
+            stopCountdownDisplay();
+            nextRefreshTime = null;
+        }
+
+        async function handleToggleChange() {
+            const enabled = toggle.checked;
+            setStoredPreference(enabled);
+
+            if (enabled) {
+                const permission = await requestNotificationPermission();
+                if (permission === 'denied') {
+                    console.info('Notification permission denied. Auto-refresh will work but notifications will be silent.');
+                }
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        }
+
+        // Initialize
+        const isEnabled = getStoredPreference();
+        toggle.checked = isEnabled;
+
+        if (isEnabled) {
+            requestNotificationPermission().then(() => {
+                startAutoRefresh();
+            });
+        }
+
+        toggle.addEventListener('change', handleToggleChange);
+
+        // Sync across tabs
+        window.addEventListener('storage', (event) => {
+            if (event.key === AUTO_REFRESH_KEY) {
+                const newPreference = getStoredPreference();
+                toggle.checked = newPreference;
+                if (newPreference) {
+                    startAutoRefresh();
+                } else {
+                    stopAutoRefresh();
+                }
+            }
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            stopAutoRefresh();
+        });
     })();
     </script>
     {% block extra_scripts %}{% endblock %}
