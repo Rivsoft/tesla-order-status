@@ -6,9 +6,10 @@ import logging
 import math
 import os
 import re
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, TypeVar
+from typing import Any, Callable, Dict, List, Optional, TypeVar
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
@@ -60,6 +61,151 @@ logger = logging.getLogger(__name__)
 TOKEN_HEADER = "x-tesla-bundle"
 CLEAR_HEADER = "x-tesla-clear"
 VISIT_PATHS = frozenset({"/", "/history", "/refresh"})
+
+
+@dataclass(frozen=True)
+class OrderProgressContext:
+    """Derived values used to compute order progress stages."""
+
+    has_order_placed: bool
+    order_placed_timestamp: Optional[str]
+    vin_value: Optional[str]
+    vin_assigned_timestamp: Optional[str]
+    production_complete: bool
+    production_timestamp: Optional[str]
+    odometer_display: Optional[str]
+    in_transit_completed: bool
+    in_transit_timestamp: Optional[str]
+    in_transit_eta_label: Optional[str]
+    in_transit_has_eta: bool
+    registration_status_label: str
+    registration_complete: bool
+    registration_timestamp: Optional[str]
+    reggie_license_plate: Optional[str]
+    registration_activity_signal: bool
+    ready_flag: bool
+    ready_timestamp: Optional[str]
+    ready_meta_label: Optional[str]
+    ready_meta_value: Optional[str]
+    ready_activity_signal: bool
+    delivered_flag: bool
+    delivered_timestamp: Optional[str]
+
+
+StageDict = Dict[str, Any]
+StatePredicate = Callable[[OrderProgressContext, StageDict], bool]
+ValueFactory = Callable[[OrderProgressContext], Optional[str]]
+BoolFactory = Callable[[OrderProgressContext], bool]
+ExtraFactory = Callable[[OrderProgressContext], Dict[str, Any]]
+
+
+@dataclass(frozen=True)
+class ProgressStageDefinition:
+    """Declarative description of an order progress milestone."""
+
+    key: str
+    label: str
+    description: str
+    completion: BoolFactory
+    timestamp: ValueFactory = lambda _: None
+    meta_label: ValueFactory = lambda _: None
+    meta_value: ValueFactory = lambda _: None
+    extra: ExtraFactory = lambda _: {}
+    force_active_when: Optional[StatePredicate] = None
+    force_pending_when: Optional[StatePredicate] = None
+
+
+def _build_stage_entry(
+    definition: ProgressStageDefinition, context: OrderProgressContext
+) -> StageDict:
+    """Serialize a progress stage definition into template-friendly data."""
+
+    stage: StageDict = {
+        "key": definition.key,
+        "label": definition.label,
+        "description": definition.description,
+        "completed": definition.completion(context),
+        "timestamp": definition.timestamp(context),
+        "meta_label": definition.meta_label(context),
+        "meta_value": definition.meta_value(context),
+    }
+    extra = definition.extra(context)
+    if extra:
+        stage.update(extra)
+    return stage
+
+
+PROGRESS_STAGE_DEFINITIONS: tuple[ProgressStageDefinition, ...] = (
+    ProgressStageDefinition(
+        key="order_placed",
+        label="Order Placed",
+        description="Reservation submitted and RN assigned.",
+        completion=lambda ctx: ctx.has_order_placed,
+        timestamp=lambda ctx: ctx.order_placed_timestamp,
+    ),
+    ProgressStageDefinition(
+        key="vin_assigned",
+        label="VIN Assigned",
+        description="Tesla matched a specific vehicle to your RN.",
+        completion=lambda ctx: bool(ctx.vin_value),
+        timestamp=lambda ctx: ctx.vin_assigned_timestamp,
+        meta_label=lambda _: "VIN",
+        meta_value=lambda ctx: ctx.vin_value,
+    ),
+    ProgressStageDefinition(
+        key="production",
+        label="In Production",
+        description="Factory scheduling or build in progress.",
+        completion=lambda ctx: ctx.production_complete,
+        timestamp=lambda ctx: ctx.production_timestamp,
+        meta_label=lambda _: "Odometer",
+        meta_value=lambda ctx: ctx.odometer_display or "Awaiting update",
+    ),
+    ProgressStageDefinition(
+        key="in_transit",
+        label="In Transit",
+        description="Vehicle departed the factory toward your delivery hub.",
+        completion=lambda ctx: ctx.in_transit_completed,
+        timestamp=lambda ctx: ctx.in_transit_timestamp,
+        meta_label=lambda _: "ETA",
+        meta_value=lambda ctx: ctx.in_transit_eta_label,
+        extra=lambda ctx: {"has_eta": ctx.in_transit_has_eta},
+        force_pending_when=lambda ctx, _: not ctx.in_transit_has_eta,
+    ),
+    ProgressStageDefinition(
+        key="registration",
+        label="Registration",
+        description="Paperwork with your DMV or agency to secure plates.",
+        completion=lambda ctx: ctx.registration_complete,
+        timestamp=lambda ctx: ctx.registration_timestamp,
+        meta_label=lambda ctx: "Plate" if ctx.reggie_license_plate else "Status",
+        meta_value=lambda ctx: (
+            ctx.reggie_license_plate or ctx.registration_status_label
+        ),
+        force_active_when=lambda ctx, _: ctx.registration_activity_signal,
+    ),
+    ProgressStageDefinition(
+        key="ready",
+        label="Ready For Delivery",
+        description="Delivery center appointment or pickup window confirmed.",
+        completion=lambda ctx: ctx.ready_flag,
+        timestamp=lambda ctx: ctx.ready_timestamp,
+        meta_label=lambda ctx: (
+            "Delivery Date" if ctx.ready_timestamp else ctx.ready_meta_label
+        ),
+        meta_value=lambda ctx: ctx.ready_timestamp or ctx.ready_meta_value,
+        force_active_when=lambda ctx, stage: bool(
+            ctx.ready_activity_signal or stage.get("state") == "active"
+        ),
+    ),
+    ProgressStageDefinition(
+        key="delivered",
+        label="Delivered",
+        description="Vehicle handed off and paperwork closed.",
+        completion=lambda ctx: ctx.delivered_flag,
+        timestamp=lambda ctx: ctx.delivered_timestamp,
+    ),
+)
 
 
 @app.middleware("http")
@@ -433,13 +579,16 @@ def build_order_progress(order_entry: Dict[str, Any]) -> Dict[str, Any]:
     data = unpack_order_data(order_entry)
     order = data["order"]
     details = data["details"]
+    tasks = data["tasks"]
     scheduling = data["scheduling"]
     registration = data["registration"]
+    final_payment = data["final_payment"]
     final_payment_data = data["final_payment_data"]
 
     registration_details = registration.get("orderDetails", {}) or {}
     delivery_details = data["delivery_details"]
     delivery_reg_data = delivery_details.get("regData", {}) or {}
+    delivery_acceptance_task = tasks.get("deliveryAcceptance", {}) or {}
 
     order_status = str(order.get("orderStatus") or "").upper()
     today = datetime.utcnow().date()
@@ -490,6 +639,42 @@ def build_order_progress(order_entry: Dict[str, Any]) -> Dict[str, Any]:
         token = token.strip("_")
         return token or None
 
+    def extract_ready_appointment_timestamp() -> Optional[Any]:
+        timestamp_keys = (
+            "appointmentDateUtc",
+            "appointmentDate",
+            "apptDateTimeUtc",
+            "apptDateTime",
+        )
+
+        def include_candidate(value: Any) -> Optional[Dict[str, Any]]:
+            return value if isinstance(value, dict) else None
+
+        candidates: List[Dict[str, Any]] = []
+        for candidate in (
+            scheduling,
+            include_candidate(scheduling.get("deliveryAppointment")),
+            delivery_acceptance_task,
+            delivery_reg_data.get("deliveryAppointment"),
+            delivery_details.get("deliveryAppointment"),
+            final_payment,
+            final_payment_data,
+            final_payment_data.get("deliveryAppointment"),
+        ):
+            if not isinstance(candidate, dict):
+                continue
+            candidates.append(candidate)
+            nested = candidate.get("deliveryAppointment")
+            if isinstance(nested, dict):
+                candidates.append(nested)
+
+        for candidate in candidates:
+            for key in timestamp_keys:
+                value = candidate.get(key)
+                if value:
+                    return value
+        return None
+
     odometer_raw = (
         registration_details.get("vehicleOdometer")
         or details.get("vehicleOdometer")
@@ -527,25 +712,29 @@ def build_order_progress(order_entry: Dict[str, Any]) -> Dict[str, Any]:
     eta_labeled = f"ETA: {eta_display}" if eta_display else None
     eta_timestamp = eta_labeled if eta_display else None
     ready_window_primary = scrub_text(scheduling.get("apptDateTimeAddressStr"))
-    ready_datetime = parse_iso_datetime(ready_window_primary)
     ready_window_fallback = scrub_text(
         scheduling.get("deliveryWindowDisplay") or scheduling.get("deliveryWindow")
     )
     ready_window_display = shorten_delivery_window_display(ready_window_fallback)
-    if ready_window_primary:
+    appointment_raw = extract_ready_appointment_timestamp()
+    ready_timestamp_display = format_timestamp(appointment_raw)
+    if not ready_timestamp_display and ready_window_primary:
+        ready_timestamp_display = ready_window_primary
+    if not ready_timestamp_display and ready_window_fallback:
+        ready_timestamp_display = ready_window_display or ready_window_fallback
+
+    if ready_timestamp_display:
         ready_meta_label = "Appointment"
-        ready_meta_value = ready_window_primary
+        ready_meta_value = ready_timestamp_display
     elif ready_window_fallback:
         ready_meta_label = "Window"
         ready_meta_value = ready_window_display or ready_window_fallback
     else:
         ready_meta_label = None
         ready_meta_value = None
-    ready_timestamp = (ready_datetime.isoformat() if ready_datetime else None) or (
-        scheduling.get("appointmentDateUtc")
-        or scheduling.get("appointmentDate")
-        or scheduling.get("apptDateTime")
-    )
+
+    ready_timestamp = ready_timestamp_display
+    ready_activity_signal = bool(ready_timestamp_display)
     delivered_flag = "DELIVERED" in order_status
     delivered_timestamp = (
         order.get("deliveryDate")
@@ -556,7 +745,6 @@ def build_order_progress(order_entry: Dict[str, Any]) -> Dict[str, Any]:
     production_complete = (
         odometer_numeric is not None and abs(odometer_numeric - 30) > 1e-6
     )
-    ready_flag = ready_datetime is not None
     registration_status_raw = registration_details.get(
         "registrationStatus"
     ) or registration.get("status")
@@ -577,6 +765,21 @@ def build_order_progress(order_entry: Dict[str, Any]) -> Dict[str, Any]:
         "APPROVED",
         "SUBMITTED",
     }
+    registration_progress_codes = {
+        # Tesla surfaces a variety of status strings that imply work-in-progress
+        # even if the step is not yet complete. Normalize several known variants
+        # so we can highlight the stage when meaningful updates exist.
+        "READY_TO_SUBMIT",
+        "READY_FOR_SUBMISSION",
+        "READY",
+        "IN_PROGRESS",
+        "PROCESSING",
+        "PENDING",
+        "STARTED",
+        "AWAITING_APPROVAL",
+        "AWAITING_TESLA",
+        "AWAITING_CUSTOMER",
+    }
     registration_complete = (
         registration_status_normalized in registration_completion_codes
     )
@@ -585,68 +788,65 @@ def build_order_progress(order_entry: Dict[str, Any]) -> Dict[str, Any]:
         or registration_details.get("registrationStartDate")
         or registration.get("startedOn")
     )
+    registration_activity_signal = bool(
+        not registration_complete
+        and (
+            reggie_license_plate
+            or (
+                registration_status_normalized
+                and registration_status_normalized in registration_progress_codes
+            )
+        )
+    )
+
+    appointment_valid = bool(parse_iso_datetime(appointment_raw))
+    ready_prereqs_complete = all(
+        (
+            bool(order_placed_raw),
+            bool(vin_value),
+            production_complete,
+            in_transit_completed,
+            registration_complete,
+        )
+    )
+    ready_flag = bool(appointment_valid and ready_prereqs_complete)
+
+    order_placed_timestamp = format_timestamp(order_placed_raw)
+    vin_assigned_timestamp = format_timestamp(vin_assigned_raw)
+    production_timestamp_formatted = format_timestamp(production_timestamp)
+    registration_timestamp_formatted = format_timestamp(registration_timestamp_raw)
+    ready_timestamp_formatted = ready_timestamp
+    delivered_timestamp_formatted = format_timestamp(delivered_timestamp)
+
+    progress_context = OrderProgressContext(
+        has_order_placed=bool(order_placed_raw),
+        order_placed_timestamp=order_placed_timestamp,
+        vin_value=vin_value,
+        vin_assigned_timestamp=vin_assigned_timestamp,
+        production_complete=production_complete,
+        production_timestamp=production_timestamp_formatted,
+        odometer_display=odometer_display or "Awaiting update",
+        in_transit_completed=in_transit_completed,
+        in_transit_timestamp=eta_timestamp,
+        in_transit_eta_label=eta_labeled,
+        in_transit_has_eta=in_transit_has_eta,
+        registration_status_label=registration_status_label,
+        registration_complete=registration_complete,
+        registration_timestamp=registration_timestamp_formatted,
+        reggie_license_plate=reggie_license_plate,
+        registration_activity_signal=registration_activity_signal,
+        ready_flag=ready_flag,
+        ready_timestamp=ready_timestamp_formatted,
+        ready_meta_label=ready_meta_label,
+        ready_meta_value=ready_meta_value,
+        ready_activity_signal=ready_activity_signal,
+        delivered_flag=delivered_flag,
+        delivered_timestamp=delivered_timestamp_formatted,
+    )
 
     stages: List[Dict[str, Any]] = [
-        {
-            "key": "order_placed",
-            "label": "Order Placed",
-            "description": "Reservation submitted and RN assigned.",
-            "completed": bool(order_placed_raw),
-            "timestamp": format_timestamp(order_placed_raw),
-        },
-        {
-            "key": "vin_assigned",
-            "label": "VIN Assigned",
-            "description": "Tesla matched a specific vehicle to your RN.",
-            "completed": bool(vin_value),
-            "timestamp": format_timestamp(vin_assigned_raw),
-            "meta_label": "VIN",
-            "meta_value": vin_value,
-        },
-        {
-            "key": "production",
-            "label": "In Production",
-            "description": "Factory scheduling or build in progress.",
-            "completed": production_complete,
-            "timestamp": format_timestamp(production_timestamp),
-            "meta_label": "Odometer",
-            "meta_value": odometer_display or "Awaiting update",
-        },
-        {
-            "key": "in_transit",
-            "label": "In Transit",
-            "description": "Vehicle departed the factory toward your delivery hub.",
-            "completed": in_transit_completed,
-            "timestamp": eta_timestamp,
-            "meta_label": "ETA",
-            "meta_value": eta_labeled,
-            "has_eta": in_transit_has_eta,
-        },
-        {
-            "key": "registration",
-            "label": "Registration",
-            "description": "Paperwork with your DMV or agency to secure plates.",
-            "completed": registration_complete,
-            "timestamp": format_timestamp(registration_timestamp_raw),
-            "meta_label": "Plate" if reggie_license_plate else "Status",
-            "meta_value": reggie_license_plate or registration_status_label,
-        },
-        {
-            "key": "ready",
-            "label": "Ready For Delivery",
-            "description": "Delivery center appointment or pickup window confirmed.",
-            "completed": ready_flag,
-            "timestamp": format_timestamp(ready_timestamp),
-            "meta_label": ready_meta_label,
-            "meta_value": ready_meta_value,
-        },
-        {
-            "key": "delivered",
-            "label": "Delivered",
-            "description": "Vehicle handed off and paperwork closed.",
-            "completed": delivered_flag,
-            "timestamp": format_timestamp(delivered_timestamp),
-        },
+        _build_stage_entry(definition, progress_context)
+        for definition in PROGRESS_STAGE_DEFINITIONS
     ]
 
     first_incomplete = next(
@@ -663,10 +863,24 @@ def build_order_progress(order_entry: Dict[str, Any]) -> Dict[str, Any]:
         else:
             stage["state"] = "upcoming"
             stage["state_label"] = "Pending"
-        if stage["key"] == "in_transit" and not stage["completed"]:
-            if not stage.get("has_eta"):
-                stage["state"] = "upcoming"
-                stage["state_label"] = "Pending"
+
+    for definition, stage in zip(PROGRESS_STAGE_DEFINITIONS, stages):
+        if stage["completed"]:
+            continue
+        pending_forced = False
+        if definition.force_pending_when and definition.force_pending_when(
+            progress_context, stage
+        ):
+            stage["state"] = "upcoming"
+            stage["state_label"] = "Pending"
+            pending_forced = True
+        if (
+            not pending_forced
+            and definition.force_active_when
+            and definition.force_active_when(progress_context, stage)
+        ):
+            stage["state"] = "active"
+            stage["state_label"] = "In Progress"
 
     completed_count = sum(1 for stage in stages if stage["completed"])
     total = len(stages)
