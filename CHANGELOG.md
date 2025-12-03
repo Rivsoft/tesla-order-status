@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.9.0 (2025-12-03)
+
+### Features
+
+- Implement order progress tracking with context and stage definitions
+  ([`890ed11`](https://github.com/Rivsoft/tesla-order-status/commit/890ed11a73dc0414b121282ae1a02fe1e9858cd8))
+
+
 ## v1.8.0 (2025-11-27)
 
 ### Chores
