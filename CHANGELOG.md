@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v1.9.1 (2026-11-19)
+
+### Bug Fixes
+
+- Publish hardened Python 3.15 image
+  ([`01d16fb`](https://github.com/Rivsoft/tesla-order-status/commit/01d16fb883a9218350ae707dbdabae1f01735698))
+
+### Refactoring
+
+- Use Python 3.15 DHI image
+  ([`ef07eff`](https://github.com/Rivsoft/tesla-order-status/commit/ef07eff570fce5f4dfcf5ee3f620b1200add7e2f))
+
+
 ## v1.9.0 (2025-12-03)
 
 ### Features
