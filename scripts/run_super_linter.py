@@ -16,7 +16,7 @@ from pathlib import Path
 
 IMAGE = os.environ.get("SUPER_LINTER_IMAGE", "ghcr.io/github/super-linter:slim-latest")
 DEFAULT_BRANCH = os.environ.get("DEFAULT_BRANCH", "main")
-PYTHON_VERSION = os.environ.get("SUPER_LINTER_PYTHON", "3.11")
+PYTHON_VERSION = os.environ.get("SUPER_LINTER_PYTHON", "3.15")
 CHANGELOG_FILTER = r".*/?CHANGELOG\.md$"
 
 

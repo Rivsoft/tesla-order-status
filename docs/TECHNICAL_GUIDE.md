@@ -17,7 +17,7 @@ All sensitive Tesla tokens remain in the browser (IndexedDB + service worker hea
 
 ## Requirements
 - Tesla account with an active order capable of completing the OAuth redirect flow.
-- **Python 3.11+** with [Poetry](https://python-poetry.org/) if you plan to run the app natively.
+- **Python 3.15** with [Poetry](https://python-poetry.org/) if you plan to run the app natively. Python 3.11-3.14 are no longer supported; CI and the Docker runtime use Python 3.15.
 - Optional: Docker / Docker Compose if you prefer containerized deployments.
 
 ---
@@ -43,6 +43,9 @@ Use `--port` to change the exposed port. Set environment variables before the co
 
 ## Docker Workflow
 ```bash
+# Authenticate to Docker Hardened Images before the first build
+docker login dhi.io
+
 # Build
 docker build -t tesla-order-status .
 
@@ -55,6 +58,8 @@ docker run --rm -p 8000:8000 tesla-order-status
 docker compose up --build
 ```
 Compose maps port `8000:8000` by default. Stop with `Ctrl+C` or `docker compose down`.
+
+The image uses Docker Hardened Images for both its Python 3.15 build and runtime stages. The runtime runs as a non-root user and excludes build tools. The GitHub Actions release workflow also requires repository action secrets named `DHI_USERNAME` and `DHI_TOKEN` to pull the DHI base images.
 
 ---
 

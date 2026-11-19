@@ -1,30 +1,33 @@
 # syntax=docker/dockerfile:1
-FROM python:3.11-slim AS base
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
+FROM dhi.io/python:3.15-alpine3.24-dev AS builder
+
+ENV PATH="/app/.venv/bin:${PATH}" \
     PIP_NO_CACHE_DIR=1 \
-    POETRY_VERSION=1.8.3 \
-    POETRY_VIRTUALENVS_CREATE=false
+    POETRY_VIRTUALENVS_IN_PROJECT=true \
+    POETRY_VIRTUALENVS_OPTIONS_NO_PIP=true \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# Install build dependencies (kept slim) and Poetry
-# hadolint ignore=DL3008
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential \
-    && pip install "poetry==${POETRY_VERSION}" \
-    && apt-get purge -y --auto-remove build-essential \
-    && rm -rf /var/lib/apt/lists/*
+RUN python -m pip install --no-cache-dir "poetry==2.3.4"
 
 COPY pyproject.toml poetry.lock ./
 RUN poetry install --only main --no-root --no-interaction --no-ansi
 
-COPY app ./app
-COPY README.md ./README.md
-COPY scripts ./scripts
-COPY app/static ./app/static
-COPY app/templates ./app/templates
+FROM dhi.io/python:3.15-alpine3.24 AS runtime
+
+ENV PATH="/app/.venv/bin:${PATH}" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+COPY --from=builder --chown=65532:65532 /app/.venv /app/.venv
+COPY --chown=65532:65532 app ./app
+
+USER 65532:65532
 
 EXPOSE 8000
 

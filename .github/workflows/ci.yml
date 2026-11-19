@@ -12,7 +12,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  quality:
+  lint:
     permissions:
       contents: read
       statuses: write
@@ -28,29 +28,54 @@ jobs:
           VALIDATE_ALL_CODEBASE: false
           DEFAULT_BRANCH: main
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PYTHON_VERSION: 3.11
+          PYTHON_VERSION: "3.15"
           FILTER_REGEX_EXCLUDE: .*/?CHANGELOG\.md$
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.15"
 
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
+          version: "2.3.4"
           virtualenvs-create: true
           virtualenvs-in-project: true
 
       - name: Install dependencies
         run: poetry install --no-interaction --no-root
 
+      - name: Smoke-test application import
+        run: poetry run python -c "from app.main import app; assert app"
+
+      - name: Smoke-test HTML routes
+        run: |
+          poetry run uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          for _ in {1..10}; do
+            if curl --fail --silent http://127.0.0.1:8000/login >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:8000/login >/dev/null
+          curl --fail --silent http://127.0.0.1:8000/logout >/dev/null
+          curl --fail --silent http://127.0.0.1:8000/history >/dev/null
+
       - name: Run tests
         run: poetry run python scripts/validate_vin_decoder.py
 
   release:
     needs:
-      - quality
+      - lint
+      - test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -66,7 +91,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.15"
 
       - name: Install python-semantic-release
         run: pip install "python-semantic-release>=9"
@@ -87,6 +112,13 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Log in to Docker Hardened Images
+        uses: docker/login-action@v3
+        with:
+          registry: dhi.io
+          username: ${{ secrets.DHI_USERNAME }}
+          password: ${{ secrets.DHI_TOKEN }}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta

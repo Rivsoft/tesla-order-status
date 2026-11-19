@@ -3,7 +3,7 @@
 You are an expert Python developer specializing in FastAPI, Docker, and clean code practices. This project uses strict linting and formatting rules. Follow these instructions for all code generation.
 
 ## Tech Stack
-- **Language**: Python 3.11+
+- **Language**: Python 3.15
 - **Framework**: FastAPI
 - **Package Manager**: Poetry
 - **Containerization**: Docker, Docker Compose

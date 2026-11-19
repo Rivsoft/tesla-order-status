@@ -6,10 +6,11 @@ import logging
 import math
 import os
 import re
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import Any, AsyncIterator, Callable, Dict, List, Optional, TypeVar
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
@@ -45,18 +46,27 @@ BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 SW_FILE = STATIC_DIR / "sw.js"
 
-app = FastAPI(title="Tesla Order Status")
 monitor = TeslaOrderMonitor()
 vin_decoder = VinDecoder()
 metrics_enabled = os.getenv("ENABLE_VISIT_METRICS", "1") != "0"
 visit_metrics = build_metrics_from_env() if metrics_enabled else None
+logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    try:
+        yield
+    finally:
+        if visit_metrics:
+            visit_metrics.force_log(logger=logger)
+
+
+app = FastAPI(title="Tesla Order Status", lifespan=lifespan)
 ResponseT = TypeVar("ResponseT", HTMLResponse, RedirectResponse)
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
-
-logger = logging.getLogger(__name__)
 
 TOKEN_HEADER = "x-tesla-bundle"
 CLEAR_HEADER = "x-tesla-clear"
@@ -214,12 +224,6 @@ async def visit_metrics_middleware(request: Request, call_next):
     if visit_metrics and request.method == "GET" and request.url.path in VISIT_PATHS:
         visit_metrics.record(request.url.path, logger=logger)
     return response
-
-
-@app.on_event("shutdown")
-async def flush_visit_metrics() -> None:
-    if visit_metrics:
-        visit_metrics.force_log(logger=logger)
 
 
 def _decode_token_bundle(value: Optional[str]) -> Optional[Dict[str, Any]]:
@@ -591,7 +595,7 @@ def build_order_progress(order_entry: Dict[str, Any]) -> Dict[str, Any]:
     delivery_acceptance_task = tasks.get("deliveryAcceptance", {}) or {}
 
     order_status = str(order.get("orderStatus") or "").upper()
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).date()
 
     def scrub_text(value: Any) -> Optional[str]:
         if value in (None, ""):
@@ -917,7 +921,7 @@ async def dashboard(request: Request):
         "orders_json": formatted_orders,
         "refreshed": request.query_params.get("refreshed") == "1",
     }
-    response = templates.TemplateResponse("index.html", context)
+    response = templates.TemplateResponse(request, "index.html", context)
     return _finalize_response(response, token_bundle)
 
 
@@ -926,7 +930,7 @@ async def login_page(request: Request):
     login_params = monitor.generate_login_params()
     auth_url = login_params["auth_url"]
     response = templates.TemplateResponse(
-        "login.html", {"request": request, "auth_url": auth_url}
+        request, "login.html", {"request": request, "auth_url": auth_url}
     )
     response.set_cookie(
         key="tesla_code_verifier",
@@ -940,7 +944,7 @@ async def login_page(request: Request):
 
 @app.get("/logout", response_class=HTMLResponse)
 async def logout(request: Request):
-    response = templates.TemplateResponse("logout.html", {"request": request})
+    response = templates.TemplateResponse(request, "logout.html", {"request": request})
     return _finalize_response(response, clear=True)
 
 
@@ -962,7 +966,7 @@ async def callback(request: Request, url: str = Form(...)):
         return HTMLResponse(content=f"Login failed: {exc}", status_code=400)
 
     context = {"request": request, "tokens": tokens}
-    response = templates.TemplateResponse("callback_success.html", context)
+    response = templates.TemplateResponse(request, "callback_success.html", context)
     response.delete_cookie("tesla_code_verifier")
     return _finalize_response(response, tokens)
 
@@ -978,7 +982,7 @@ async def refresh_redirect(request: Request):
 
 @app.get("/history", response_class=HTMLResponse)
 async def history(request: Request):
-    response = templates.TemplateResponse("history.html", {"request": request})
+    response = templates.TemplateResponse(request, "history.html", {"request": request})
     return _finalize_response(response)
 
 
